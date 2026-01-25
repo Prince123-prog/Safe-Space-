@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Private Love Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500&display=swap" rel="stylesheet">
+
+<style>
+*{
+box-sizing:border-box;
+font-family:'Poppins',sans-serif;
+}
+
+body{
+ max-width: 100%;
+ height: auto;
+background:radial-gradient(circle at top,#0a0a50,#5e1515);
+color:#fff;
+display:flex;
+align-items:center;
+height:100vh;
+margin:0;
+animation: backgroundAnim 50s ease-in infinite;
+}
+
+@keyframes backgroundAnim{
+0%{background:radial-gradient(circle at top,#121224,#33282898);}
+25%{background:radial-gradient(circle at top,#200f2b,#2a3d44);}
+50%{background:radial-gradient(circle at top,#383702,#044e42);}
+75%{background:radial-gradient(circle at top,#1b0b23,#3a2a36);}
+100%{background:radial-gradient(circle at top,#2c010fa2,#02423fcb);}
+ 
+}
+
+section{
+    padding:20px;
+    text-align:center;
+    background-color: #3a2a36;
+    border: 1px solid #0a0a50;
+    border-radius: 25px;
+    font-family: monaco;
+    width: min(90%, 480px);
+    height: auto;
+    box-shadow: 0 8px 24px rgba(58,42,54,0.18), 0 4px 12px rgba(10,10,80,0.12);
+    font-size: clamp(16px, 2vw, 20px);
+    margin: 50% auto;
+    align-content: center;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:manipulation;
+    cursor:pointer;
+}
+
+section:active {
+    cursor: pointer;
+    background-color: #c24b4bec;
+    transform: scale(0.98);
+    transition: all 0.15s ease;
+}
+
+section:hover {
+    cursor: pointer;
+    background-color: #c24b4bec;
+    transform: scaleX(1.1);
+    transition: all 0.25s ease;
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  section:hover {
+      transform: scale(1.03);
+      transition: transform 0.25s ease;
+      cursor: pointer;
+      background-color: #c24b4bec;
+      border: 5px solid #ff4fd8;
+  }
+  
+  section:active {
+    transform: scale(1.03);
+  }
+}
+
+button{
+  display:inline-block;
+  width:100%;
+  max-width:320px;
+  padding:12px 18px;
+  margin:8px auto;
+  border-radius:10px;
+  border:none;
+  background:linear-gradient(90deg,#ff7eb3,#7afcff);
+  color:#111;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  transition:all 0.25s ease;
+}
+
+#link a{color:#ffd1ff;word-break:break-word;display:inline-block;margin-top:8px}
+
+header{
+    position: fixed;
+    margin-bottom: 20px;
+    top: 12px;
+    left:15px;
+    right:12px;
+    font-size:clamp(16px,2.2vw,24px);
+    text-align:left;
+}
+
+@media (max-width:480px){
+  body{align-items:flex-start;padding-top:80px}
+  header{position:fixed;left:12px;right:12px;top:8px;font-size:16px;text-align:center}
+  section{width:94%;padding:16px}
+  button{padding:14px}
+}
+</style>
+</head>
+<body>
+    <header>
+ <h2>Generate a private chat link and express your safe without fear. Your conversations are 
+    encrypted and secure.</h2> 
+</header>
+<section onclick="generateLink()">
+ <button onclick="generateLink()">Generate Link</button>
+ <p id="link"></p>
+</section>
+
+ <script>
+function generateLink(){
+// Generate a secure random key for encryption
+const arr = new Uint8Array(16);
+crypto.getRandomValues(arr);
+const key = btoa(String.fromCharCode(...arr)).replace(/[+/=]/g, "");
+
+// ✅ Generate link with secure key hash parameter
+const link = `./private-chat.html#key=${key}`;
+
+document.getElementById("link").innerHTML =
+`<a href="${link}" target="_blank">${link}</a>`;
+}
+</script>
+</body>

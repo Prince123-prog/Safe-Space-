@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Private Love Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            max-width: 100%;
+            height: 100vh;
+            background: radial-gradient(circle at top, #0a0a50, #5e1515);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            animation: backgroundAnim 50s ease-in infinite;
+            overflow: hidden;
+        }
+
+        @keyframes backgroundAnim {
+            0% {
+                background: radial-gradient(circle at top, #121224, #33282898);
+            }
+
+            25% {
+                background: radial-gradient(circle at top, #200f2b, #2a3d44);
+            }
+
+            50% {
+                background: radial-gradient(circle at top, #383702, #044e42);
+            }
+
+            75% {
+                background: radial-gradient(circle at top, #1b0b23, #3a2a36);
+            }
+
+            100% {
+                background: radial-gradient(circle at top, #2c010fa2, #02423fcb);
+            }
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 550px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(134, 193, 197, 0.4);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 40px rgba(255, 79, 216, 0.2);
+            position: relative;
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #ff4fd8;
+            font-weight: 500;
+        }
+
+        .safe-box {
+            margin: 0 auto 12px;
+            padding: 10px 16px;
+            background: linear-gradient(90deg, rgba(255, 110, 199, 0.12), rgba(127, 124, 255, 0.08));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #d8c8c7;
+            font-size: 0.9rem;
+            text-align: center;
+            border-radius: 12px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            text-transform: capitalize;
+        }
+
+        .safe-notice {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            padding: 10px 14px;
+            background: linear-gradient(90deg, rgba(0, 0, 0, 0.65), rgba(10, 15, 20, 0.5));
+            color: #bfffe8;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(6px);
+            font-weight: 600;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            animation: moveCorners 12s linear infinite;
+            width: clamp(100px, 15vw, 220px);
+            pointer-events: none;
+        }
+
+        @keyframes moveCorners {
+            0% {
+                background-color: rgba(255, 0, 0, 0.2);
+                left: 0px;
+                top: 0px;
+            }
+
+            25% {
+                background-color: rgba(255, 255, 0, 0.2);
+                left: calc(100% - 150px);
+                top: 0px;
+            }
+
+            50% {
+                background-color: rgba(0, 0, 255, 0.2);
+                left: calc(100% - 150px);
+                top: calc(100vh - 50px);
+            }
+
+            75% {
+                background-color: rgba(0, 255, 0, 0.2);
+                left: 0px;
+                top: calc(100vh - 50px);
+            }
+
+            100% {
+                background-color: rgba(255, 0, 0, 0.2);
+                left: 0px;
+                top: 0px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .safe-notice {
+                display: none;
+            }
+        }
+
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .msg {
+            background: rgba(122, 124, 255, 0.15);
+            padding: 10px 14px;
+            border-radius: 15px;
+            margin: 8px 0;
+            animation: fadeIn 0.4s ease;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            max-width: 85%;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .input-area {
+            margin-top: 15px;
+        }
+
+        .composed-input {
+            display: flex;
+            align-items: center;
+            background: #111;
+            border-radius: 20px;
+            padding: 5px 10px;
+            gap: 5px;
+        }
+
+        input#input {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            color: #fff;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #ff6ec7, #7f7cff);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, filter 0.2s;
+        }
+
+        .icon-btn:hover {
+            transform: scale(1.1);
+            filter: brightness(1.1);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.9);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+        }
+
+        .file-btn {
+            font-size: 0.75rem;
+            padding: 5px 10px;
+            background: #222;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 1px solid #333;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .image-thumb {
+            position: relative;
+            max-width: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .image-thumb img {
+            width: 100%;
+            display: block;
+            filter: blur(10px);
+            transition: filter 0.3s;
+        }
+
+        .image-thumb.opened img {
+            filter: blur(2px);
+            opacity: 0.5;
+        }
+
+        .open-btn {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .image-placeholder {
+            padding: 10px;
+            text-align: center;
+            background: #222;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .image-modal img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.7rem;
+            opacity: 0.5;
+            margin-top: 10px;
+        }
+
+        .link-btn {
+            background: #ff4fd8;
+            color: #111;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="safe-notice">Secure Chat System</div>
+
+    <div class="chat-container">
+        <button class="link-btn" onclick="createLink()">Generate Secure Chat Link</button>
+        <div class="title">Private Secure Chat</div>
+        <div class="safe-box">Safe Space • End-to-End Encrypted</div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="input-area">
+            <div class="composed-input">
+                <input id="input" placeholder="Enter message..." autocomplete="off">
+                <label id="fileLabel" for="imageInput" class="file-btn">Add Image</label>
+                <div class="action-buttons">
+                    <button class="icon-btn" onclick="send()" title="Send">
+                        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13"></path>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+        </div>
+
+        <div class="footer">
+            Messages disappear after 5 min. Session data is wiped on exit.
+        </div>
+    </div>
+
+    <div id="imageModal" class="image-modal">
+        <img id="modalImg" src="">
+    </div>
+
+    <!-- Firebase SDK (Compatibility versions for non-module usage) -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
+
+    <script>
+        // ===== FIREBASE CONFIG =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYv_TWjskU5V-4rO7lrbPd8376jX-8pi8",
+            authDomain: "safe-space-69733.firebaseapp.com",
+            databaseURL: "https://safe-space-69733-default-rtdb.firebaseio.com",
+            projectId: "safe-space-69733",
+            storageBucket: "safe-space-69733.firebasestorage.app",
+            messagingSenderId: "914939132682",
+            appId: "1:914939132682:web:1d5094b4ed0cb82f0a18f3",
+            measurementId: "G-6TKJXY99P9"
+        };
+
+        // Initialize Firebase
+        let db;
+        try {
+            const app = firebase.initializeApp(firebaseConfig);
+            db = firebase.database(app);
+            console.log("Firebase initialized");
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            document.getElementById("messages").innerHTML = `<div class='msg' style='background:rgba(255,0,0,0.2)'>System Error: Failed to connect to chat service. Please refresh.</div>`;
+        }
+    </script>
+
+    <script>
+        /* --------------------------
+                                    🔐 CRYPTO LOGIC
+                                    -------------------------- */
+        let cryptoKey = null;
+        const params = new URLSearchParams(location.hash.substring(1));
+        const sharedSecret = params.get("key");
+
+        if (!sharedSecret) {
+            document.getElementById("messages").innerHTML = `<div class='msg' style='background:rgba(255,165,0,0.2)'>No chat room connected. Please use a secure link or generate one below.</div>`;
+        }
+
+        async function initCrypto(secret) {
+            const enc = new TextEncoder();
+            try {
+                const baseKey = await crypto.subtle.importKey(
+                    "raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]
+                );
+                cryptoKey = await crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: enc.encode("private-chat"), iterations: 100000, hash: "SHA-256" },
+                    baseKey,
+                    { name: "AES-GCM", length: 256 },
+                    false,
+                    ["encrypt", "decrypt"]
+                );
+                console.log("Encryption initialized");
+            } catch (e) {
+                console.error("Crypto init failed", e);
+            }
+        }
+
+        if (sharedSecret) initCrypto(sharedSecret);
+
+        async function encryptData(data) {
+            if (!cryptoKey) return null;
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt(
+                { name: "AES-GCM", iv },
+                cryptoKey,
+                new TextEncoder().encode(data)
+            );
+            return {
+                payload: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+                iv: btoa(String.fromCharCode(...iv))
+            };
+        }
+
+        async function decryptData(encryptedB64, ivB64) {
+            if (!cryptoKey) return "Error: No Key";
+            try {
+                const encrypted = new Uint8Array(atob(encryptedB64).split("").map(c => c.charCodeAt(0)));
+                const iv = new Uint8Array(atob(ivB64).split("").map(c => c.charCodeAt(0)));
+                const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, encrypted);
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                return "[Decryption Failed]";
+            }
+        }
+
+        /* --------------------------
+           💬 CHAT LOGIC
+        -------------------------- */
+        const messagesDiv = document.getElementById("messages");
+        const input = document.getElementById("input");
+        const imageInput = document.getElementById("imageInput");
+        const fileLabel = document.getElementById("fileLabel");
+        const imageModal = document.getElementById("imageModal");
+        const modalImg = document.getElementById("modalImg");
+
+        let chatSession = [];
+        let dbRef = null;
+        const renderingMessages = new Set();
+
+        // Load existing messages from Firebase
+        window.onload = async () => {
+            if (!sharedSecret) return;
+            const roomKey = sharedSecret;
+            dbRef = db.ref(`chats/${roomKey}`);
+
+            // Load existing messages
+            dbRef.once('value', async (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    for (const [key, msg] of Object.entries(data)) {
+                        msg.dbKey = key;
+                        await render(msg);
+                    }
+                }
+            });
+
+            // Listen for new messages in real-time
+            dbRef.on('child_added', async (snapshot) => {
+                const msg = snapshot.val();
+                msg.dbKey = snapshot.key;
+
+                // Only render if not already rendered
+                if (!renderingMessages.has(msg.id)) {
+                    renderingMessages.add(msg.id);
+                    await render(msg);
+                }
+            });
+
+            // Listen for updates (e.g., image opened state)
+            dbRef.on('child_changed', async (snapshot) => {
+                const msg = snapshot.val();
+                msg.dbKey = snapshot.key;
+                const msgDiv = document.getElementById(`msg-${msg.id}`);
+                if (msgDiv && msg.opened) {
+                    msgDiv.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
+                }
+            });
+        };
+
+        imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            fileLabel.textContent = file ? file.name : "Add Image";
+        };
+
+        function createLink() {
+            const arr = new Uint8Array(16);
+            crypto.getRandomValues(arr);
+            const key = btoa(String.fromCharCode(...arr)).replace(/[+/=]/g, "");
+            const link = `${location.origin}${location.pathname}#key=${key}`;
+            prompt("Copy this secure link to start chatting:", link);
+        }
+
+        async function send() {
+            if (!sharedSecret) return alert("Generate/Open a secure link first!");
+
+            const textValue = input.value.trim();
+            const file = imageInput.files[0];
+
+            if (!textValue && !file) return;
+
+            let msgObj = { id: Date.now(), time: Date.now() };
+
+            if (textValue) {
+                const enc = await encryptData(textValue);
+                msgObj.text = enc;
+            }
+
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) return alert("Image too large (max 2MB)");
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const encImg = await encryptData(e.target.result);
+                    msgObj.image = encImg;
+                    msgObj.opened = false;
+                    finalizeSend(msgObj);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                finalizeSend(msgObj);
+            }
+        }
+
+        function finalizeSend(msg) {
+            if (!dbRef) return alert("No chat room connected");
+
+            chatSession.push(msg);
+            // Save to Firebase instead of sessionStorage
+            dbRef.push(msg, (error) => {
+                if (error) {
+                    console.error("Failed to send message:", error);
+                    alert("Failed to send message. Check console.");
+                } else {
+                    console.log("Message sent successfully");
+                }
+            });
+
+            render(msg);
+            input.value = "";
+            imageInput.value = "";
+            fileLabel.textContent = "Add Image";
+        }
+
+        async function render(msg) {
+            const div = document.createElement("div");
+            div.className = "msg";
+            div.id = `msg-${msg.id}`;
+
+            if (msg.text) {
+                const decryptedText = await decryptData(msg.text.payload, msg.text.iv);
+                div.innerText = decryptedText;
+            }
+
+            if (msg.image) {
+                const imgContainer = document.createElement("div");
+                imgContainer.className = "image-thumb";
+
+                if (msg.opened) {
+                    imgContainer.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
+                } else {
+                    const img = document.createElement("img");
+                    const decryptedImgData = await decryptData(msg.image.payload, msg.image.iv);
+                    img.src = decryptedImgData;
+
+                    const btn = document.createElement("button");
+                    btn.className = "open-btn";
+                    btn.innerText = "OPEN ONCE";
+                    btn.onclick = () => {
+                        modalImg.src = decryptedImgData;
+                        imageModal.style.display = "flex";
+                        msg.opened = true;
+                        imgContainer.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
+                        // Update in Firebase
+                        if (msg.dbKey && dbRef) {
+                            dbRef.child(msg.dbKey).update({ opened: true });
+                        }
+                    };
+
+                    imgContainer.appendChild(img);
+                    imgContainer.appendChild(btn);
+                }
+                div.appendChild(imgContainer);
+            }
+
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Auto-delete after 5 minutes
+            setTimeout(() => {
+                div.style.opacity = "0";
+                setTimeout(() => {
+                    div.remove();
+                    chatSession = chatSession.filter(m => m.id !== msg.id);
+                    // Delete from Firebase
+                    if (msg.dbKey && dbRef) {
+                        dbRef.child(msg.dbKey).remove();
+                    }
+                }, 500);
+            }, 300000);
+        }
+
+        imageModal.onclick = () => {
+            imageModal.style.display = "none";
+            modalImg.src = "";
+        };
+
+        window.addEventListener("beforeunload", () => {
+            // Option: sessionStorage is cleared by browser naturally on tab close usually, 
+            // but we can be explicit if we want total wipe.
+            // sessionStorage.clear(); 
+        });
+
+        // Enter to send
+        input.onkeypress = (e) => { if (e.key === "Enter") send(); };
+    </script>
+
+</body>
+
+</html>
