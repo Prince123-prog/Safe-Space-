@@ -186,13 +186,42 @@
       button {
         padding: 14px
       }
+      
     }
+
+    /* Ensure About Programer link is visible on all viewports */
+    .programer {
+      display: block !important;
+      margin: 12px auto !important;
+      text-align: center !important;
+      color: #111 !important;
+      font-size: 16px !important;
+      background: transparent !important;
+      position: fixed !important;
+      bottom: 12px !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 1000 !important;
+      width: 80%;
+      pointer-events: auto !important;
+    }
+
+    .programer a {
+      color: #111 !important;
+      background: #ff4fd8;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+        }
+       
+    
   </style>
 </head>
 
 <body>
   <header>
-    <h2>Generate a private chat link and express your safe without fear. Your conversations are
+    <h2>Generate a private chat link and express your self without fear. Your conversations are
       encrypted and secure.</h2>
   </header>
   <section onclick="generateLink(event)">
@@ -202,7 +231,7 @@
       <button id="copyBtn" class="copy-btn" onclick="copyToClipboard(event)">Copy Link</button>
     </div>
   </section>
-
+ 
   <script>
     let generatedLink = "";
 
@@ -251,4 +280,7 @@
       }
     }
   </script>
-</body>
+  <div class="programer ">
+   <a href="Programer.html">About Programers</a>
+  </div>
+</body> 

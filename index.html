@@ -250,6 +250,15 @@ opacity:0.5;
     height:auto;
     animation-duration:3s;
   }
+   .copyrigth{
+        font-size: 12px;
+        position: fixed;
+        bottom: 8px;
+        left: 12px;
+        right: 12px;
+        text-align: center;
+        color: antiquewhite;
+      }
 }
 </style>
 </head>
@@ -264,7 +273,7 @@ const loveElement = document.querySelector('.love');
 if(loveElement){
   // Add touch event listeners for mobile
   loveElement.addEventListener('touchstart', function(e){
-    e.preventDefault();
+   e.preventDefault();
     this.classList.add('active');
   });
   
@@ -326,7 +335,8 @@ Start a Private Connection
 <div class="love"></div>
 
 <div class="footer">
-Close the page and everything disappears.
+Close the page and everything disappears.<br>
+© 2025 Safe Space. All rights reserved.
 </div>
 
 </div>

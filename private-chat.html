@@ -319,6 +319,13 @@
             margin-bottom: 10px;
             width: 100%;
         }
+        /* When toggled, remove animated/background visuals for accessibility or preference */
+        .bg-off {
+            background: none !important;
+            background-color: #ffffffb7 !important;
+            color: #111 !important;
+            animation: none !important;
+        }
     </style>
 </head>
 
@@ -328,6 +335,7 @@
 
     <div class="chat-container">
         <button class="link-btn" onclick="createLink()">Generate Secure Chat Link</button>
+        <button id="toggleBgBtn" class="link-btn" onclick="toggleBackground()" style="background:#ffffff;color:#111;margin-top:8px;">Turn Off Background</button>
         <div class="title">Private Secure Chat</div>
         <div class="safe-box">Safe Space • End-to-End Encrypted</div>
 
@@ -634,6 +642,14 @@
 
         // Enter to send
         input.onkeypress = (e) => { if (e.key === "Enter") send(); };
+
+            // Toggle page background on/off for users who want a plain background
+            function toggleBackground() {
+                const btn = document.getElementById('toggleBgBtn');
+                const body = document.body;
+                const isOff = body.classList.toggle('bg-off');
+                btn.textContent = isOff ? 'Restore Background' : 'Turn Off Background';
+            }
     </script>
 
 </body>
