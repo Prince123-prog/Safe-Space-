@@ -555,8 +555,11 @@
             if (!dbRef) return alert("No chat room connected");
 
             chatSession.push(msg);
-            // Save to Firebase instead of sessionStorage
-            dbRef.push(msg, (error) => {
+            renderingMessages.add(msg.id);
+
+            const newMsgRef = dbRef.push();
+            msg.dbKey = newMsgRef.key;
+            newMsgRef.set(msg, (error) => {
                 if (error) {
                     console.error("Failed to send message:", error);
                     alert("Failed to send message. Check console.");
