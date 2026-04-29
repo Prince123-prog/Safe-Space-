@@ -245,6 +245,68 @@
             color: #111;
         }
 
+        /* File preview area */
+        .file-preview-area {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 79, 216, 0.3);
+        }
+
+        .file-preview-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        #fileName {
+            flex: 1;
+            font-size: 0.85rem;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .send-file-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #ff6ec7, #7f7cff);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: transform 0.2s, filter 0.2s;
+        }
+
+        .send-file-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .send-file-btn:active {
+            transform: scale(0.95);
+        }
+
+        .cancel-file-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .cancel-file-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -597,7 +659,7 @@
                 <input id="input" placeholder="Enter message..." autocomplete="off">
                 <div class="action-buttons">
                     <label id="fileLabel" for="imageInput" class="file-btn">Add Image</label>
-                    <button class="icon-btn" onclick="send()" title="Send">
+                    <button class="icon-btn" onclick="sendText()" title="Send Text">
                         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 2L11 13"></path>
                             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -605,6 +667,14 @@
                     </button>
                 </div>
                 <input type="file" id="imageInput" accept="image/*">
+            </div>
+            <!-- Separate file send area -->
+            <div id="filePreviewArea" class="file-preview-area" style="display: none;">
+                <div class="file-preview-info">
+                    <span id="fileName">No file selected</span>
+                    <button id="sendFileBtn" class="send-file-btn" onclick="sendFile()">Send File</button>
+                    <button id="cancelFileBtn" class="cancel-file-btn" onclick="cancelFile()">Cancel</button>
+                </div>
             </div>
         </div>
 
@@ -864,8 +934,53 @@
 
         imageInput.onchange = (e) => {
             const file = e.target.files[0];
-            fileLabel.textContent = file ? file.name : "Add Image";
+            if (file) {
+                // Show file preview area
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('filePreviewArea').style.display = 'block';
+                fileLabel.textContent = file.name;
+            }
         };
+
+        // Send file separately
+        function sendFile() {
+            const file = imageInput.files[0];
+            if (!file) return alert("No file selected");
+            if (!sharedSecret) return alert("Generate/Open a secure link first!");
+            if (file.size > 2 * 1024 * 1024) return alert("Image too large (max 2MB)");
+
+            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const encImg = await encryptData(e.target.result);
+                msgObj.image = encImg;
+                msgObj.opened = false;
+                finalizeSend(msgObj);
+                cancelFile(); // Clear the preview area after sending
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Cancel file selection
+        function cancelFile() {
+            imageInput.value = '';
+            fileLabel.textContent = "Add Image";
+            document.getElementById('filePreviewArea').style.display = 'none';
+        }
+
+        // Send text only (separate from file)
+        function sendText() {
+            const textValue = input.value.trim();
+            if (!textValue) return;
+            if (!sharedSecret) return alert("Generate/Open a secure link first!");
+
+            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
+            encryptData(textValue).then(enc => {
+                msgObj.text = enc;
+                finalizeSend(msgObj);
+            });
+        }
 
         function createLink() {
             const arr = new Uint8Array(16);
@@ -1054,8 +1169,8 @@
             // sessionStorage.clear(); 
         });
 
-        // Enter to send
-        input.onkeypress = (e) => { if (e.key === "Enter") send(); };
+        // Enter to send text
+        input.onkeypress = (e) => { if (e.key === "Enter") sendText(); };
 
             // Toggle page background on/off for users who want a plain background
             function toggleBackground() {
