@@ -788,6 +788,7 @@
         let chatSession = [];
         let dbRef = null;
         const renderingMessages = new Set();
+        let isClearing = false; // Flag to prevent duplicate rendering during clear
         
         // User identification and online status
         let currentUserId = localStorage.getItem('chatUserId');
@@ -900,6 +901,9 @@
 
             // Listen for new messages in real-time
             dbRef.on('child_added', async (snapshot) => {
+                // Skip if we're in the middle of clearing messages
+                if (isClearing) return;
+                
                 const msg = snapshot.val();
                 msg.dbKey = snapshot.key;
 
@@ -994,9 +998,13 @@
         function clearAllMessages() {
             if (!dbRef) return;
             
-            // Clear local chat session
+            // Set flag to prevent duplicate rendering
+            isClearing = true;
+            
+            // Clear local chat session and rendering tracking
             chatSession = [];
             messagesDiv.innerHTML = '';
+            renderingMessages.clear();
             
             // Remove all messages from Firebase
             dbRef.once('value', (snapshot) => {
@@ -1006,6 +1014,8 @@
                         dbRef.child(key).remove();
                     });
                 }
+                // Reset flag after clearing is done
+                setTimeout(() => { isClearing = false; }, 500);
             });
             
             console.log('All messages cleared');
