@@ -811,6 +811,9 @@
             const roomKey = sharedSecret;
             dbRef = db.ref(`chats/${roomKey}`);
 
+            // Clear all messages on page refresh/load
+            clearAllMessages();
+
             // Setup presence tracking
             setupPresence();
 
@@ -867,9 +870,45 @@
         function createLink() {
             const arr = new Uint8Array(16);
             crypto.getRandomValues(arr);
-            const key = btoa(String.fromCharCode(...arr)).replace(/[+/=]/g, "");
+            const key = btoa(String.fromCharCode(...arr)).replace(/[+/==]/g, "");
             const link = `${location.origin}${location.pathname}#key=${key}`;
             prompt("Copy this secure link to start chatting:", link);
+        }
+
+        // Clear all messages from chat and Firebase
+        function clearAllMessages() {
+            if (!dbRef) return;
+            
+            // Clear local chat session
+            chatSession = [];
+            messagesDiv.innerHTML = '';
+            
+            // Remove all messages from Firebase
+            dbRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        dbRef.child(key).remove();
+                    });
+                }
+            });
+            
+            console.log('All messages cleared');
+        }
+
+        // Auto-delete messages after 5 minutes
+        function scheduleAutoDelete(msg, div) {
+            setTimeout(() => {
+                div.style.opacity = '0';
+                setTimeout(() => {
+                    div.remove();
+                    chatSession = chatSession.filter(m => m.id !== msg.id);
+                    // Delete from Firebase
+                    if (msg.dbKey && dbRef) {
+                        dbRef.child(msg.dbKey).remove();
+                    }
+                }, 500);
+            }, 300000); // 5 minutes = 300000ms
         }
 
         async function send() {
@@ -1001,17 +1040,7 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
             // Auto-delete after 5 minutes
-            setTimeout(() => {
-                div.style.opacity = "0";
-                setTimeout(() => {
-                    div.remove();
-                    chatSession = chatSession.filter(m => m.id !== msg.id);
-                    // Delete from Firebase
-                    if (msg.dbKey && dbRef) {
-                        dbRef.child(msg.dbKey).remove();
-                    }
-                }, 500);
-            }, 300000);
+            scheduleAutoDelete(msg, div);
         }
 
         imageModal.onclick = () => {
