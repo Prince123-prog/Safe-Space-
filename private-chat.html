@@ -171,6 +171,80 @@
             max-width: 85%;
         }
 
+        /* Sender messages - right aligned, different color */
+        .msg.sender {
+            background: linear-gradient(135deg, rgba(255, 79, 216, 0.25), rgba(127, 124, 255, 0.2));
+            margin-left: auto;
+            border-right: 3px solid #ff4fd8;
+        }
+
+        /* Receiver messages - left aligned */
+        .msg.receiver {
+            background: rgba(122, 124, 255, 0.15);
+            margin-right: auto;
+            border-left: 3px solid #7f7cff;
+        }
+
+        /* Online status indicator */
+        .online-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            animation: pulse 2s infinite;
+        }
+
+        .online-dot.active {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .online-dot.active {
+            animation: pulse 2s infinite;
+        }
+
+        /* File upload fixed */
+        .file-btn {
+            font-size: 0.75rem;
+            padding: 5px 10px;
+            background: #222;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 1px solid #333;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .file-btn:hover {
+            background: #333;
+            border-color: #ff4fd8;
+        }
+
+        .file-btn.uploading {
+            background: #ff4fd8;
+            color: #111;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -512,6 +586,10 @@
         <div class="title">Private Secure Chat</div>
         <div class="safe-box">Safe Space • End-to-End Encrypted</div>
 
+        <div class="online-indicator" id="onlineStatus">
+            <span class="online-dot" id="onlineDot"></span>
+            <span id="onlineText">Connecting...</span>
+        </div>
         <div class="messages" id="messages"></div>
 
         <div class="input-area">
@@ -640,12 +718,101 @@
         let chatSession = [];
         let dbRef = null;
         const renderingMessages = new Set();
+        
+        // User identification and online status
+        let currentUserId = localStorage.getItem('chatUserId');
+        if (!currentUserId) {
+            currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('chatUserId', currentUserId);
+        }
+        
+        // Track online users and file views
+        let onlineUsers = new Map();
+        let fileViewers = {}; // Track who has viewed which file
+        let userPresenceRef = null;
+        
+        // Update online status
+        function updateOnlineStatus(count, isActive) {
+            const dot = document.getElementById('onlineDot');
+            const text = document.getElementById('onlineText');
+            if (count > 1) {
+                dot.classList.add('active');
+                text.textContent = `${count} users online`;
+            } else if (count === 1) {
+                dot.classList.add('active');
+                text.textContent = 'You are online';
+            } else {
+                dot.classList.remove('active');
+                text.textContent = 'Connecting...';
+            }
+        }
+        
+        // Handle user presence
+        function setupPresence() {
+            if (!dbRef || !sharedSecret) return;
+            
+            const roomRef = dbRef.parent.parent;
+            userPresenceRef = roomRef.child('presence/' + currentUserId);
+            
+            // Set presence
+            userPresenceRef.set({
+                id: currentUserId,
+                online: true,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // Remove on disconnect
+            userPresenceRef.onDisconnect().remove();
+            
+            // Listen for online users
+            roomRef.child('presence').on('value', (snapshot) => {
+                const users = snapshot.val();
+                let count = 0;
+                if (users) {
+                    Object.values(users).forEach(user => {
+                        if (user.online) count++;
+                    });
+                }
+                updateOnlineStatus(count, true);
+                
+                // Check if any user who hasn't viewed files went offline
+                checkOfflineFileViewers(users);
+            });
+        }
+        
+        // Check if users who haven't viewed files went offline
+        function checkOfflineFileViewers(users) {
+            if (!users || !dbRef) return;
+            
+            // Get current online user IDs
+            const onlineUserIds = new Set();
+            Object.values(users).forEach(user => {
+                if (user.online) onlineUserIds.add(user.id);
+            });
+            
+            // Check each message with files
+            chatSession.forEach(msg => {
+                if (msg.fileViewers && msg.image) {
+                    const viewers = Object.keys(msg.fileViewers);
+                    const hasUnviewedOffline = viewers.some(viewerId => !onlineUserIds.has(viewerId));
+                    
+                    // If a user who viewed the file went offline, close the file for everyone
+                    if (hasUnviewedOffline && msg.dbKey) {
+                        // Remove fileViewers to indicate file is closed
+                        dbRef.child(msg.dbKey).update({ fileViewers: null });
+                    }
+                }
+            });
+        }
 
         // Load existing messages from Firebase
         window.onload = async () => {
             if (!sharedSecret) return;
             const roomKey = sharedSecret;
             dbRef = db.ref(`chats/${roomKey}`);
+
+            // Setup presence tracking
+            setupPresence();
 
             // Load existing messages
             dbRef.once('value', async (snapshot) => {
@@ -670,13 +837,24 @@
                 }
             });
 
-            // Listen for updates (e.g., image opened state)
+            // Listen for updates (e.g., image opened state, file viewers)
             dbRef.on('child_changed', async (snapshot) => {
                 const msg = snapshot.val();
                 msg.dbKey = snapshot.key;
                 const msgDiv = document.getElementById(`msg-${msg.id}`);
-                if (msgDiv && msg.opened) {
-                    msgDiv.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
+                if (msgDiv) {
+                    // Update file viewers display
+                    if (msg.fileViewers) {
+                        const viewerCount = Object.keys(msg.fileViewers).length;
+                        const viewerSpan = msgDiv.querySelector('.viewer-count');
+                        if (viewerSpan) {
+                            viewerSpan.textContent = ` (${viewerCount} viewed)`;
+                        }
+                    }
+                    // Update opened state
+                    if (msg.opened && msg.openedBy && msg.openedBy[currentUserId]) {
+                        msgDiv.innerHTML = '<div class="image-placeholder">Image opened</div>';
+                    }
                 }
             });
         };
@@ -702,7 +880,7 @@
 
             if (!textValue && !file) return;
 
-            let msgObj = { id: Date.now(), time: Date.now() };
+            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
 
             if (textValue) {
                 const enc = await encryptData(textValue);
@@ -752,6 +930,13 @@
             div.className = "msg";
             div.id = `msg-${msg.id}`;
 
+            // Add sender/receiver distinction based on user ID
+            if (msg.senderId === currentUserId) {
+                div.classList.add('sender');
+            } else {
+                div.classList.add('receiver');
+            }
+
             if (msg.text) {
                 const decryptedText = await decryptData(msg.text.payload, msg.text.iv);
                 div.innerText = decryptedText;
@@ -761,8 +946,15 @@
                 const imgContainer = document.createElement("div");
                 imgContainer.className = "image-thumb";
 
-                if (msg.opened) {
-                    imgContainer.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
+                // Check if current user has viewed the image
+                const hasViewed = msg.fileViewers && msg.fileViewers[currentUserId];
+                const viewerCount = msg.fileViewers ? Object.keys(msg.fileViewers).length : 0;
+                const isFileClosed = msg.fileViewers === null;
+
+                if (isFileClosed) {
+                    imgContainer.innerHTML = '<div class="image-placeholder" style="color: #ff6666;">File closed</div>';
+                } else if (hasViewed) {
+                    imgContainer.innerHTML = '<div class="image-placeholder">Image viewed</div>';
                 } else {
                     const img = document.createElement("img");
                     const decryptedImgData = await decryptData(msg.image.payload, msg.image.iv);
@@ -770,20 +962,37 @@
 
                     const btn = document.createElement("button");
                     btn.className = "open-btn";
-                    btn.innerText = "OPEN ONCE";
+                    btn.innerText = "VIEW";
                     btn.onclick = () => {
                         modalImg.src = decryptedImgData;
                         imageModal.style.display = "flex";
-                        msg.opened = true;
-                        imgContainer.innerHTML = '<div class="image-placeholder">Image opened (once)</div>';
-                        // Update in Firebase
+                        
+                        // Track that this user viewed the file
+                        if (!msg.fileViewers) msg.fileViewers = {};
+                        msg.fileViewers[currentUserId] = true;
+                        
+                        // Update in Firebase with viewer info
                         if (msg.dbKey && dbRef) {
-                            dbRef.child(msg.dbKey).update({ opened: true });
+                            dbRef.child(msg.dbKey).update({ 
+                                fileViewers: msg.fileViewers 
+                            });
                         }
+                        
+                        // Update local display
+                        const viewerCount = Object.keys(msg.fileViewers).length;
+                        imgContainer.innerHTML = `<div class="image-placeholder">Image viewed<span class="viewer-count"> (${viewerCount})</span></div>`;
                     };
 
                     imgContainer.appendChild(img);
                     imgContainer.appendChild(btn);
+                    
+                    // Show viewer count if anyone has viewed
+                    if (viewerCount > 0) {
+                        const viewerInfo = document.createElement("div");
+                        viewerInfo.style.cssText = "font-size: 0.7rem; color: #aaa; margin-top: 4px;";
+                        viewerInfo.innerHTML = `<span class="viewer-count">(${viewerCount} viewed)</span>`;
+                        imgContainer.appendChild(viewerInfo);
+                    }
                 }
                 div.appendChild(imgContainer);
             }
