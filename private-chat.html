@@ -1173,10 +1173,14 @@
             modalImg.src = "";
         };
 
+        // Handle page hide/close on both mobile and desktop
+        window.addEventListener("pagehide", () => {
+            clearAllMessages();
+        });
+        
+        // Also support beforeunload for desktop
         window.addEventListener("beforeunload", () => {
-            // Option: sessionStorage is cleared by browser naturally on tab close usually, 
-            // but we can be explicit if we want total wipe.
-            // sessionStorage.clear(); 
+            clearAllMessages();
         });
 
         // Enter to send text
