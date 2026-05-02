@@ -326,8 +326,8 @@
             transition: filter 0.2s;
         }
 
-        .msg-media img:hover,
-        .msg-media video:hover {
+        .msg-media:not(.locked):not(.viewed) img:hover,
+        .msg-media:not(.locked):not(.viewed) video:hover {
             filter: brightness(0.9);
         }
 
@@ -353,15 +353,65 @@
             z-index: 10;
         }
 
-        /* Viewed/Expired State */
-        .msg-media.viewed {
-            opacity: 0.6;
+        .view-once-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 16px;
+            z-index: 8;
+            cursor: pointer;
+        }
+
+        .media-done-btn {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            display: none;
+            border: none;
+            border-radius: 16px;
+            padding: 7px 12px;
+            background: rgba(255, 79, 216, 0.95);
+            color: #111;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 12;
+        }
+
+        .msg-media.locked img,
+        .msg-media.locked video,
+        .msg-media.viewed img,
+        .msg-media.viewed video {
+            filter: blur(10px);
+        }
+
+        .msg-media.locked video,
+        .msg-media.viewed video {
             pointer-events: none;
         }
 
-        .msg-media.viewed img,
-        .msg-media.viewed video {
-            filter: blur(8px);
+        .msg-media.revealed .view-once-overlay {
+            display: none;
+        }
+
+        .msg-media.revealed .media-done-btn {
+            display: block;
+        }
+
+        .msg-media.viewed .view-once-overlay,
+        .msg-media.viewed .media-done-btn {
+            display: none;
+        }
+
+        /* Viewed/Expired State */
+        .msg-media.viewed {
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
@@ -652,6 +702,29 @@
 
         if (sharedSecret) cryptoReadyPromise = initCrypto(sharedSecret);
 
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000;
+            let binary = "";
+
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+            }
+
+            return btoa(binary);
+        }
+
+        function base64ToUint8Array(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            return bytes;
+        }
+
         async function encryptData(data) {
             if (!cryptoKey) {
                 await cryptoReadyPromise;
@@ -664,16 +737,16 @@
                 new TextEncoder().encode(data)
             );
             return {
-                payload: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
-                iv: btoa(String.fromCharCode(...iv))
+                payload: arrayBufferToBase64(encrypted),
+                iv: arrayBufferToBase64(iv)
             };
         }
 
         async function decryptData(encryptedB64, ivB64) {
             if (!cryptoKey) return "Error: No Key";
             try {
-                const encrypted = new Uint8Array(atob(encryptedB64).split("").map(c => c.charCodeAt(0)));
-                const iv = new Uint8Array(atob(ivB64).split("").map(c => c.charCodeAt(0)));
+                const encrypted = base64ToUint8Array(encryptedB64);
+                const iv = base64ToUint8Array(ivB64);
                 const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, encrypted);
                 return new TextDecoder().decode(decrypted);
             } catch (e) {
@@ -690,13 +763,15 @@
         let chatSession = [];
         let dbRef = null;
         const renderingMessages = new Set();
+        const deletionTimers = new Map();
         let isClearing = false; // Flag to prevent duplicate rendering during clear
         
-        // User identification and online status
-        let currentUserId = localStorage.getItem('chatUserId');
+        // User identification and online status. Keep this per tab so two test windows
+        // in the same browser still behave like two different chat users.
+        let currentUserId = sessionStorage.getItem('chatUserId');
         if (!currentUserId) {
             currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('chatUserId', currentUserId);
+            sessionStorage.setItem('chatUserId', currentUserId);
         }
         
         // Track online users
@@ -754,9 +829,6 @@
             if (!sharedSecret) return;
             const roomKey = sharedSecret;
             dbRef = db.ref(`chats/${roomKey}`);
-
-            // Clear all messages on page refresh/load
-            clearAllMessages();
 
             // Setup presence tracking
             setupPresence();
@@ -817,6 +889,8 @@
             chatSession = [];
             messagesDiv.innerHTML = '';
             renderingMessages.clear();
+            deletionTimers.forEach(timerId => clearTimeout(timerId));
+            deletionTimers.clear();
             
             // Remove all messages from Firebase
             dbRef.once('value', (snapshot) => {
@@ -834,18 +908,25 @@
         }
 
         // Auto-delete messages after 5 minutes
-        function scheduleAutoDelete(msg, div) {
-            setTimeout(() => {
+        function scheduleAutoDelete(msg, div, delay = 300000) {
+            if (deletionTimers.has(msg.id)) {
+                clearTimeout(deletionTimers.get(msg.id));
+            }
+
+            const timerId = setTimeout(() => {
                 div.style.opacity = '0';
                 setTimeout(() => {
                     div.remove();
                     chatSession = chatSession.filter(m => m.id !== msg.id);
+                    deletionTimers.delete(msg.id);
                     // Delete from Firebase
                     if (msg.dbKey && dbRef) {
                         dbRef.child(msg.dbKey).remove();
                     }
                 }, 500);
-            }, 300000); // 5 minutes = 300000ms
+            }, delay); // 5 minutes = 300000ms by default
+
+            deletionTimers.set(msg.id, timerId);
         }
 
         async function send() {
@@ -906,14 +987,20 @@
             scheduleAutoDelete(msg, div);
         }
 
+        function cleanupPresence() {
+            if (userPresenceRef) {
+                userPresenceRef.remove();
+            }
+        }
+
         // Handle page hide/close on both mobile and desktop
         window.addEventListener("pagehide", () => {
-            clearAllMessages();
+            cleanupPresence();
         });
         
         // Also support beforeunload for desktop
         window.addEventListener("beforeunload", () => {
-            clearAllMessages();
+            cleanupPresence();
         });
 
         // Enter to send text
@@ -1014,12 +1101,8 @@
                 alert("Error reading file. Please try again.");
             };
 
-            // Read as data URL for images, or as binary for videos
-            if (file.type.startsWith('image/')) {
-                reader.readAsDataURL(file);
-            } else {
-                reader.readAsArrayBuffer(file);
-            }
+            // Store media as a data URL so images and videos render consistently after decryption.
+            reader.readAsDataURL(file);
         }
 
         // Store original render function
@@ -1073,6 +1156,10 @@
                         }
                         
                         mediaDiv.appendChild(img);
+                        if (msg.viewOnce && msg.senderId !== currentUserId) {
+                            img.onclick = null;
+                            setupReceiverMedia(mediaDiv, img, msg, false);
+                        }
                     } else if (msg.type === 'video') {
                         const video = document.createElement('video');
                         video.controls = true;
@@ -1099,6 +1186,11 @@
                         }
                         
                         mediaDiv.appendChild(video);
+                        if (msg.viewOnce && msg.senderId !== currentUserId) {
+                            video.onclick = null;
+                            video.controls = false;
+                            setupReceiverMedia(mediaDiv, video, msg, true);
+                        }
                     }
 
                     div.appendChild(mediaDiv);
@@ -1112,6 +1204,78 @@
             scheduleAutoDelete(msg, div);
         }
 
+        function setupReceiverMedia(mediaDiv, media, msg, isVideo) {
+            mediaDiv.classList.add('locked');
+            mediaDiv.classList.remove('revealed', 'viewed');
+
+            let badge = mediaDiv.querySelector('.view-once-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'view-once-badge';
+                mediaDiv.appendChild(badge);
+            }
+            badge.textContent = 'View Once';
+
+            let overlay = mediaDiv.querySelector('.view-once-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'view-once-overlay';
+                mediaDiv.appendChild(overlay);
+            }
+            overlay.textContent = 'Click to view';
+
+            let doneBtn = mediaDiv.querySelector('.media-done-btn');
+            if (!doneBtn) {
+                doneBtn = document.createElement('button');
+                doneBtn.type = 'button';
+                doneBtn.className = 'media-done-btn';
+                doneBtn.textContent = 'Done';
+                mediaDiv.appendChild(doneBtn);
+            }
+
+            const revealMedia = () => {
+                if (mediaDiv.classList.contains('viewed')) {
+                    alert("This file has already been viewed and is no longer available.");
+                    return;
+                }
+
+                mediaDiv.classList.remove('locked');
+                mediaDiv.classList.add('revealed');
+                badge.textContent = 'Viewing';
+                media.style.cursor = isVideo ? 'default' : 'pointer';
+
+                if (isVideo) {
+                    media.controls = true;
+                    media.play().catch(() => {});
+                }
+            };
+
+            mediaDiv.addEventListener('click', () => {
+                if (mediaDiv.classList.contains('locked')) {
+                    revealMedia();
+                }
+            });
+
+            if (!isVideo) {
+                media.addEventListener('click', () => {
+                    if (mediaDiv.classList.contains('revealed')) {
+                        markMediaAsViewed(mediaDiv, msg);
+                    }
+                });
+            } else {
+                media.addEventListener('ended', () => {
+                    if (mediaDiv.classList.contains('revealed')) {
+                        markMediaAsViewed(mediaDiv, msg);
+                    }
+                });
+            }
+
+            doneBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                markMediaAsViewed(mediaDiv, msg);
+            });
+        }
+
         function markMediaAsViewed(mediaDiv, msg) {
             // Check if already viewed
             if (mediaDiv.classList.contains('viewed')) {
@@ -1120,6 +1284,7 @@
             }
 
             // Mark as viewed
+            mediaDiv.classList.remove('locked', 'revealed');
             mediaDiv.classList.add('viewed');
             
             // Blur the media and disable interaction
@@ -1127,31 +1292,26 @@
             if (media) {
                 media.onclick = null;
                 media.controls = false;
+                media.pause?.();
             }
 
-            // Auto-delete immediately after viewing
-            setTimeout(() => {
-                mediaDiv.style.opacity = '0';
-                setTimeout(() => {
-                    const msgDiv = document.getElementById(`msg-${msg.id}`);
-                    if (msgDiv) {
-                        msgDiv.remove();
-                    }
-                    chatSession = chatSession.filter(m => m.id !== msg.id);
-                    
-                    // Delete from Firebase
-                    if (msg.dbKey && dbRef) {
-                        dbRef.child(msg.dbKey).remove();
-                    }
-                }, 500);
-            }, 500);
+            const badge = mediaDiv.querySelector('.view-once-badge');
+            if (badge) badge.textContent = 'Viewed';
+
+            const doneBtn = mediaDiv.querySelector('.media-done-btn');
+            if (doneBtn) doneBtn.remove();
+
+            const msgDiv = document.getElementById(`msg-${msg.id}`);
+            if (msgDiv) {
+                scheduleAutoDelete(msg, msgDiv);
+            }
         }
 
         async function decryptFileData(encryptedB64, ivB64) {
             if (!cryptoKey) return null;
             try {
-                const encrypted = new Uint8Array(atob(encryptedB64).split("").map(c => c.charCodeAt(0)));
-                const iv = new Uint8Array(atob(ivB64).split("").map(c => c.charCodeAt(0)));
+                const encrypted = base64ToUint8Array(encryptedB64);
+                const iv = base64ToUint8Array(ivB64);
                 const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, encrypted);
                 
                 // Try to decode as text (for images stored as data URLs)
