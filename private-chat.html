@@ -313,6 +313,7 @@
             overflow: hidden;
             max-width: 100%;
             background: rgba(0, 0, 0, 0.2);
+            position: relative;
         }
 
         .msg-media img,
@@ -321,10 +322,64 @@
             height: auto;
             display: block;
             border-radius: 8px;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .msg-media img:hover,
+        .msg-media video:hover {
+            filter: brightness(0.9);
         }
 
         .msg-media video {
             width: 100%;
+        }
+
+        /* View-Once Badge */
+        .view-once-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 79, 216, 0.9);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Viewed/Expired State */
+        .msg-media.viewed {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .msg-media.viewed img,
+        .msg-media.viewed video {
+            filter: blur(8px);
+            cursor: not-allowed;
+        }
+
+        .msg-media.viewed::after {
+            content: '👁️ Viewed';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            width: 80%;
+            z-index: 20;
         }
 
         .loading-spinner {
@@ -939,7 +994,8 @@
                     type: isImage ? 'image' : 'video',
                     fileName: file.name,
                     fileSize: file.size,
-                    mimeType: file.type
+                    mimeType: file.type,
+                    viewOnce: true
                 };
 
                 // Encrypt file data
@@ -994,13 +1050,28 @@
                 if (decryptedData) {
                     const mediaDiv = document.createElement('div');
                     mediaDiv.className = 'msg-media';
+                    mediaDiv.id = `media-${msg.id}`;
 
                     if (msg.type === 'image') {
                         const img = document.createElement('img');
                         img.src = decryptedData;
                         img.alt = msg.fileName || 'Shared Image';
                         img.style.cursor = 'pointer';
-                        img.onclick = () => downloadFile(decryptedData, msg.fileName, 'image');
+                        
+                        // Handle view-once for images
+                        if (msg.viewOnce && msg.senderId !== currentUserId) {
+                            const badge = document.createElement('div');
+                            badge.className = 'view-once-badge';
+                            badge.textContent = '👁️ View Once';
+                            mediaDiv.appendChild(badge);
+                            
+                            img.onclick = () => {
+                                markMediaAsViewed(mediaDiv, msg);
+                            };
+                        } else {
+                            img.onclick = () => downloadFile(decryptedData, msg.fileName, 'image');
+                        }
+                        
                         mediaDiv.appendChild(img);
                     } else if (msg.type === 'video') {
                         const video = document.createElement('video');
@@ -1014,6 +1085,19 @@
                         } else {
                             video.src = decryptedData;
                         }
+                        
+                        // Handle view-once for videos
+                        if (msg.viewOnce && msg.senderId !== currentUserId) {
+                            const badge = document.createElement('div');
+                            badge.className = 'view-once-badge';
+                            badge.textContent = '👁️ View Once';
+                            mediaDiv.appendChild(badge);
+                            
+                            video.onclick = () => {
+                                markMediaAsViewed(mediaDiv, msg);
+                            };
+                        }
+                        
                         mediaDiv.appendChild(video);
                     }
 
@@ -1026,6 +1110,41 @@
 
             // Auto-delete after 5 minutes
             scheduleAutoDelete(msg, div);
+        }
+
+        function markMediaAsViewed(mediaDiv, msg) {
+            // Check if already viewed
+            if (mediaDiv.classList.contains('viewed')) {
+                alert("This file has already been viewed and is no longer available.");
+                return;
+            }
+
+            // Mark as viewed
+            mediaDiv.classList.add('viewed');
+            
+            // Blur the media and disable interaction
+            const media = mediaDiv.querySelector('img, video');
+            if (media) {
+                media.onclick = null;
+                media.controls = false;
+            }
+
+            // Auto-delete immediately after viewing
+            setTimeout(() => {
+                mediaDiv.style.opacity = '0';
+                setTimeout(() => {
+                    const msgDiv = document.getElementById(`msg-${msg.id}`);
+                    if (msgDiv) {
+                        msgDiv.remove();
+                    }
+                    chatSession = chatSession.filter(m => m.id !== msg.id);
+                    
+                    // Delete from Firebase
+                    if (msg.dbKey && dbRef) {
+                        dbRef.child(msg.dbKey).remove();
+                    }
+                }, 500);
+            }, 500);
         }
 
         async function decryptFileData(encryptedB64, ivB64) {
