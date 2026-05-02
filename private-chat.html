@@ -219,94 +219,6 @@
             animation: pulse 2s infinite;
         }
 
-        /* File upload fixed */
-        .file-btn {
-            font-size: 0.75rem;
-            padding: 5px 10px;
-            background: #222;
-            border-radius: 10px;
-            cursor: pointer;
-            border: 1px solid #333;
-            max-width: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-shrink: 0;
-            transition: background 0.2s, border-color 0.2s;
-        }
-
-        .file-btn:hover {
-            background: #333;
-            border-color: #ff4fd8;
-        }
-
-        .file-btn.uploading {
-            background: #ff4fd8;
-            color: #111;
-        }
-
-        /* File preview area */
-        .file-preview-area {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 79, 216, 0.3);
-        }
-
-        .file-preview-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-
-        #fileName {
-            flex: 1;
-            font-size: 0.85rem;
-            color: #fff;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .send-file-btn {
-            padding: 8px 16px;
-            background: linear-gradient(135deg, #ff6ec7, #7f7cff);
-            color: #fff;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.85rem;
-            transition: transform 0.2s, filter 0.2s;
-        }
-
-        .send-file-btn:hover {
-            transform: scale(1.05);
-            filter: brightness(1.1);
-        }
-
-        .send-file-btn:active {
-            transform: scale(0.95);
-        }
-
-        .cancel-file-btn {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.85rem;
-            transition: background 0.2s;
-        }
-
-        .cancel-file-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -359,24 +271,6 @@
             align-items: center;
         }
 
-        .file-btn {
-            font-size: 0.75rem;
-            padding: 5px 10px;
-            background: #222;
-            border-radius: 10px;
-            cursor: pointer;
-            border: 1px solid #333;
-            max-width: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        #imageInput {
-            display: none;
-        }
-
         .icon-btn {
             width: 40px;
             height: 40px;
@@ -405,79 +299,6 @@
             height: 20px;
             stroke: currentColor;
             fill: none;
-        }
-
-        .file-btn {
-            font-size: 0.75rem;
-            padding: 5px 10px;
-            background: #222;
-            border-radius: 10px;
-            cursor: pointer;
-            border: 1px solid #333;
-            max-width: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        #imageInput {
-            display: none;
-        }
-
-        .image-thumb {
-            position: relative;
-            max-width: 150px;
-            border-radius: 10px;
-            overflow: hidden;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-
-        .image-thumb img {
-            width: 100%;
-            display: block;
-            filter: blur(10px);
-            transition: filter 0.3s;
-        }
-
-        .image-thumb.opened img {
-            filter: blur(2px);
-            opacity: 0.5;
-        }
-
-        .open-btn {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            color: #fff;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .image-placeholder {
-            padding: 10px;
-            text-align: center;
-            background: #222;
-            border-radius: 10px;
-            font-size: 0.8rem;
-        }
-
-        .image-modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            padding: 20px;
-        }
-
-        .image-modal img {
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 10px;
         }
 
         .footer {
@@ -588,19 +409,9 @@
                 height: 18px;
             }
 
-            .file-btn {
-                font-size: 0.7rem;
-                padding: 4px 8px;
-                max-width: 70px;
-            }
-
             .footer {
                 font-size: 0.6rem;
                 margin-top: 8px;
-            }
-
-            .image-thumb {
-                max-width: 100px;
             }
         }
 
@@ -658,7 +469,6 @@
             <div class="composed-input">
                 <input id="input" placeholder="Enter message..." autocomplete="off">
                 <div class="action-buttons">
-                        <label id="fileLabel" for="imageInput" class="file-btn">Add Image</label>
                     <button type="button" class="icon-btn" onclick="send()" title="Send Message">
                         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 2L11 13"></path>
@@ -666,25 +476,12 @@
                         </svg>
                     </button>
                 </div>
-                <input type="file" id="imageInput" accept="image/*">
-            </div>
-            <!-- Separate file send area -->
-            <div id="filePreviewArea" class="file-preview-area" style="display: none;">
-                <div class="file-preview-info">
-                    <span id="fileName">No file selected</span>
-                    <button id="sendFileBtn" class="send-file-btn" onclick="sendFile()">Send File</button>
-                    <button id="cancelFileBtn" class="cancel-file-btn" onclick="cancelFile()">Cancel</button>
-                </div>
             </div>
         </div>
 
         <div class="footer">
             Messages disappear after 5 min. Session data is wiped on exit.
         </div>
-    </div>
-
-    <div id="imageModal" class="image-modal">
-        <img id="modalImg" src="">
     </div>
 
     <!-- Firebase SDK (Compatibility versions for non-module usage) -->
@@ -785,10 +582,6 @@
         -------------------------- */
         const messagesDiv = document.getElementById("messages");
         const input = document.getElementById("input");
-        const imageInput = document.getElementById("imageInput");
-        const fileLabel = document.getElementById("fileLabel");
-        const imageModal = document.getElementById("imageModal");
-        const modalImg = document.getElementById("modalImg");
 
         let chatSession = [];
         let dbRef = null;
@@ -802,9 +595,8 @@
             localStorage.setItem('chatUserId', currentUserId);
         }
         
-        // Track online users and file views
+        // Track online users
         let onlineUsers = new Map();
-        let fileViewers = {}; // Track who has viewed which file
         let userPresenceRef = null;
         
         // Update online status
@@ -850,37 +642,9 @@
                     });
                 }
                 updateOnlineStatus(count, true);
-                
-                // Check if any user who hasn't viewed files went offline
-                checkOfflineFileViewers(users);
             });
         }
         
-        // Check if users who haven't viewed files went offline
-        function checkOfflineFileViewers(users) {
-            if (!users || !dbRef) return;
-            
-            // Get current online user IDs
-            const onlineUserIds = new Set();
-            Object.values(users).forEach(user => {
-                if (user.online) onlineUserIds.add(user.id);
-            });
-            
-            // Check each message with files
-            chatSession.forEach(msg => {
-                if (msg.fileViewers && msg.image) {
-                    const viewers = Object.keys(msg.fileViewers);
-                    const hasUnviewedOffline = viewers.some(viewerId => !onlineUserIds.has(viewerId));
-                    
-                    // If a user who viewed the file went offline, close the file for everyone
-                    if (hasUnviewedOffline && msg.dbKey) {
-                        // Remove fileViewers to indicate file is closed
-                        dbRef.child(msg.dbKey).update({ fileViewers: null });
-                    }
-                }
-            });
-        }
-
         // Load existing messages from Firebase
         window.onload = async () => {
             if (!sharedSecret) return;
@@ -919,70 +683,16 @@
                 }
             });
 
-            // Listen for updates (e.g., image opened state, file viewers)
+            // Listen for updates
             dbRef.on('child_changed', async (snapshot) => {
                 const msg = snapshot.val();
                 msg.dbKey = snapshot.key;
                 const msgDiv = document.getElementById(`msg-${msg.id}`);
                 if (msgDiv) {
-                    // Update file viewers display
-                    if (msg.fileViewers) {
-                        const viewerCount = Object.keys(msg.fileViewers).length;
-                        const viewerSpan = msgDiv.querySelector('.viewer-count');
-                        if (viewerSpan) {
-                            viewerSpan.textContent = ` (${viewerCount} viewed)`;
-                        }
-                    }
-                    // Update opened state
-                    if (msg.opened && msg.openedBy && msg.openedBy[currentUserId]) {
-                        msgDiv.innerHTML = '<div class="image-placeholder">Image opened</div>';
-                    }
+                    // No updates needed for text-only messages
                 }
             });
         };
-
-        imageInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                // Show file preview area
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('filePreviewArea').style.display = 'block';
-                fileLabel.textContent = file.name;
-            }
-        };
-
-        // Send file separately
-        function sendFile() {
-            const file = imageInput.files[0];
-            if (!file) return alert("No file selected");
-            if (!sharedSecret) return alert("Generate/Open a secure link first!");
-            if (file.size > 2 * 1024 * 1024) return alert("Image too large (max 2MB)");
-
-            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const encImg = await encryptData(e.target.result);
-                if (!encImg) return alert("Encryption is not ready yet. Please wait a moment and try again.");
-                msgObj.image = encImg;
-                msgObj.opened = false;
-                finalizeSend(msgObj);
-                cancelFile(); // Clear the preview area after sending
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // Cancel file selection
-        function cancelFile() {
-            imageInput.value = '';
-            fileLabel.textContent = "Add Image";
-            document.getElementById('filePreviewArea').style.display = 'none';
-        }
-
-        // Send text only (separate from file)
-        function sendText() {
-            send();
-        }
 
         function createLink() {
             const arr = new Uint8Array(16);
@@ -1038,33 +748,13 @@
             if (!sharedSecret) return alert("Generate/Open a secure link first!");
 
             const textValue = input.value.trim();
-            const file = imageInput.files[0];
-
-            if (!textValue && !file) return;
+            if (!textValue) return;
 
             let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
-
-            if (textValue) {
-                const enc = await encryptData(textValue);
-                if (!enc) return alert("Encryption is not ready yet. Please wait a moment and try again.");
-                msgObj.text = enc;
-            }
-
-            if (file) {
-                if (file.size > 2 * 1024 * 1024) return alert("Image too large (max 2MB)");
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const encImg = await encryptData(e.target.result);
-                    if (!encImg) return alert("Encryption is not ready yet. Please wait a moment and try again.");
-                    msgObj.image = encImg;
-                    msgObj.opened = false;
-                    finalizeSend(msgObj);
-                    cancelFile();
-                };
-                reader.readAsDataURL(file);
-            } else {
-                finalizeSend(msgObj);
-            }
+            const enc = await encryptData(textValue);
+            if (!enc) return alert("Encryption is not ready yet. Please wait a moment and try again.");
+            msgObj.text = enc;
+            finalizeSend(msgObj);
         }
 
         function finalizeSend(msg) {
@@ -1086,8 +776,6 @@
 
             render(msg);
             input.value = "";
-            imageInput.value = "";
-            fileLabel.textContent = "Add Image";
         }
 
         async function render(msg) {
@@ -1107,72 +795,12 @@
                 div.innerText = decryptedText;
             }
 
-            if (msg.image) {
-                const imgContainer = document.createElement("div");
-                imgContainer.className = "image-thumb";
-
-                // Check if current user has viewed the image
-                const hasViewed = msg.fileViewers && msg.fileViewers[currentUserId];
-                const viewerCount = msg.fileViewers ? Object.keys(msg.fileViewers).length : 0;
-                const isFileClosed = msg.fileViewers === null;
-
-                if (isFileClosed) {
-                    imgContainer.innerHTML = '<div class="image-placeholder" style="color: #ff6666;">File closed</div>';
-                } else if (hasViewed) {
-                    imgContainer.innerHTML = '<div class="image-placeholder">Image viewed</div>';
-                } else {
-                    const img = document.createElement("img");
-                    const decryptedImgData = await decryptData(msg.image.payload, msg.image.iv);
-                    img.src = decryptedImgData;
-
-                    const btn = document.createElement("button");
-                    btn.className = "open-btn";
-                    btn.innerText = "VIEW";
-                    btn.onclick = () => {
-                        modalImg.src = decryptedImgData;
-                        imageModal.style.display = "flex";
-                        
-                        // Track that this user viewed the file
-                        if (!msg.fileViewers) msg.fileViewers = {};
-                        msg.fileViewers[currentUserId] = true;
-                        
-                        // Update in Firebase with viewer info
-                        if (msg.dbKey && dbRef) {
-                            dbRef.child(msg.dbKey).update({ 
-                                fileViewers: msg.fileViewers 
-                            });
-                        }
-                        
-                        // Update local display
-                        const viewerCount = Object.keys(msg.fileViewers).length;
-                        imgContainer.innerHTML = `<div class="image-placeholder">Image viewed<span class="viewer-count"> (${viewerCount})</span></div>`;
-                    };
-
-                    imgContainer.appendChild(img);
-                    imgContainer.appendChild(btn);
-                    
-                    // Show viewer count if anyone has viewed
-                    if (viewerCount > 0) {
-                        const viewerInfo = document.createElement("div");
-                        viewerInfo.style.cssText = "font-size: 0.7rem; color: #aaa; margin-top: 4px;";
-                        viewerInfo.innerHTML = `<span class="viewer-count">(${viewerCount} viewed)</span>`;
-                        imgContainer.appendChild(viewerInfo);
-                    }
-                }
-                div.appendChild(imgContainer);
-            }
-
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
             // Auto-delete after 5 minutes
             scheduleAutoDelete(msg, div);
         }
-
-        imageModal.onclick = () => {
-            imageModal.style.display = "none";
-            modalImg.src = "";
-        };
 
         // Handle page hide/close on both mobile and desktop
         window.addEventListener("pagehide", () => {
@@ -1185,7 +813,7 @@
         });
 
         // Enter to send text
-        input.onkeypress = (e) => { if (e.key === "Enter") sendText(); };
+        input.onkeypress = (e) => { if (e.key === "Enter") send(); };
 
             // Toggle page background on/off for users who want a plain background
             function toggleBackground() {
