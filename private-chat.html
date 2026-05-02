@@ -658,8 +658,8 @@
             <div class="composed-input">
                 <input id="input" placeholder="Enter message..." autocomplete="off">
                 <div class="action-buttons">
-                    <label id="fileLabel" for="imageInput" class="file-btn">Add Image</label>
-                    <button class="icon-btn" onclick="sendText()" title="Send Text">
+                        <label id="fileLabel" for="imageInput" class="file-btn">Add Image</label>
+                    <button type="button" class="icon-btn" onclick="send()" title="Send Message">
                         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 2L11 13"></path>
                             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -728,6 +728,8 @@
             document.getElementById("messages").innerHTML = `<div class='msg' style='background:rgba(255,165,0,0.2)'>No chat room connected. Please use a secure link or generate one below.</div>`;
         }
 
+        let cryptoReadyPromise = Promise.resolve();
+
         async function initCrypto(secret) {
             const enc = new TextEncoder();
             try {
@@ -747,10 +749,13 @@
             }
         }
 
-        if (sharedSecret) initCrypto(sharedSecret);
+        if (sharedSecret) cryptoReadyPromise = initCrypto(sharedSecret);
 
         async function encryptData(data) {
-            if (!cryptoKey) return null;
+            if (!cryptoKey) {
+                await cryptoReadyPromise;
+                if (!cryptoKey) return null;
+            }
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const encrypted = await crypto.subtle.encrypt(
                 { name: "AES-GCM", iv },
@@ -958,6 +963,7 @@
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const encImg = await encryptData(e.target.result);
+                if (!encImg) return alert("Encryption is not ready yet. Please wait a moment and try again.");
                 msgObj.image = encImg;
                 msgObj.opened = false;
                 finalizeSend(msgObj);
@@ -975,15 +981,7 @@
 
         // Send text only (separate from file)
         function sendText() {
-            const textValue = input.value.trim();
-            if (!textValue) return;
-            if (!sharedSecret) return alert("Generate/Open a secure link first!");
-
-            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
-            encryptData(textValue).then(enc => {
-                msgObj.text = enc;
-                finalizeSend(msgObj);
-            });
+            send();
         }
 
         function createLink() {
@@ -1048,6 +1046,7 @@
 
             if (textValue) {
                 const enc = await encryptData(textValue);
+                if (!enc) return alert("Encryption is not ready yet. Please wait a moment and try again.");
                 msgObj.text = enc;
             }
 
@@ -1056,9 +1055,11 @@
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const encImg = await encryptData(e.target.result);
+                    if (!encImg) return alert("Encryption is not ready yet. Please wait a moment and try again.");
                     msgObj.image = encImg;
                     msgObj.opened = false;
                     finalizeSend(msgObj);
+                    cancelFile();
                 };
                 reader.readAsDataURL(file);
             } else {
