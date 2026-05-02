@@ -301,6 +301,47 @@
             fill: none;
         }
 
+        /* File Input - Hidden but functional */
+        input#fileInput {
+            display: none;
+        }
+
+        /* Media Message Display */
+        .msg-media {
+            margin-top: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            max-width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .msg-media img,
+        .msg-media video {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .msg-media video {
+            width: 100%;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ff4fd8;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .footer {
             text-align: center;
             font-size: 0.7rem;
@@ -469,6 +510,14 @@
             <div class="composed-input">
                 <input id="input" placeholder="Enter message..." autocomplete="off">
                 <div class="action-buttons">
+                    <button type="button" class="icon-btn" onclick="openFileDialog()" title="Share Files (Images/Videos)">
+                        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*,video/*" onchange="handleFileSelect(event)">
                     <button type="button" class="icon-btn" onclick="send()" title="Send Message">
                         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 2L11 13"></path>
@@ -822,6 +871,207 @@
                 const isOff = body.classList.toggle('bg-off');
                 btn.textContent = isOff ? 'Restore Background' : 'Turn Off Background';
             }
+
+        /* ========================================
+           🎯 FILE SHARING FUNCTIONALITY
+           ======================================== */
+        
+        // File size limits (10MB for images, 50MB for videos)
+        const FILE_SIZE_LIMITS = {
+            image: 10 * 1024 * 1024,  // 10MB
+            video: 50 * 1024 * 1024   // 50MB
+        };
+
+        // Allowed MIME types
+        const ALLOWED_TYPES = {
+            images: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'],
+            videos: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+        };
+
+        function openFileDialog() {
+            if (!sharedSecret) {
+                alert("Please generate/open a secure link first!");
+                return;
+            }
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            const isImage = ALLOWED_TYPES.images.includes(file.type);
+            const isVideo = ALLOWED_TYPES.videos.includes(file.type);
+
+            if (!isImage && !isVideo) {
+                alert("Only images and videos are allowed!");
+                return;
+            }
+
+            // Validate file size
+            const limit = isImage ? FILE_SIZE_LIMITS.image : FILE_SIZE_LIMITS.video;
+            if (file.size > limit) {
+                const maxMB = limit / (1024 * 1024);
+                alert(`File too large! Maximum size: ${maxMB}MB`);
+                return;
+            }
+
+            // Process file
+            sendFile(file);
+
+            // Reset input
+            event.target.value = '';
+        }
+
+        function sendFile(file) {
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                const fileData = e.target.result;
+                const isImage = ALLOWED_TYPES.images.includes(file.type);
+                const isVideo = ALLOWED_TYPES.videos.includes(file.type);
+
+                let msgObj = {
+                    id: Date.now(),
+                    time: Date.now(),
+                    senderId: currentUserId,
+                    type: isImage ? 'image' : 'video',
+                    fileName: file.name,
+                    fileSize: file.size,
+                    mimeType: file.type
+                };
+
+                // Encrypt file data
+                const enc = await encryptData(fileData);
+                if (!enc) {
+                    alert("Encryption not ready. Please try again.");
+                    return;
+                }
+
+                msgObj.file = enc;
+
+                finalizeSend(msgObj);
+            };
+
+            reader.onerror = () => {
+                alert("Error reading file. Please try again.");
+            };
+
+            // Read as data URL for images, or as binary for videos
+            if (file.type.startsWith('image/')) {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        // Store original render function
+        const originalRender = render;
+
+        async function render(msg) {
+            const div = document.createElement("div");
+            div.className = "msg";
+            div.id = `msg-${msg.id}`;
+
+            // Add sender/receiver distinction
+            if (msg.senderId === currentUserId) {
+                div.classList.add('sender');
+            } else {
+                div.classList.add('receiver');
+            }
+
+            // Handle text messages
+            if (msg.text) {
+                const decryptedText = await decryptData(msg.text.payload, msg.text.iv);
+                div.innerText = decryptedText;
+            }
+
+            // Handle file messages
+            if (msg.file && msg.type) {
+                const decryptedData = await decryptFileData(msg.file.payload, msg.file.iv);
+                
+                if (decryptedData) {
+                    const mediaDiv = document.createElement('div');
+                    mediaDiv.className = 'msg-media';
+
+                    if (msg.type === 'image') {
+                        const img = document.createElement('img');
+                        img.src = decryptedData;
+                        img.alt = msg.fileName || 'Shared Image';
+                        img.style.cursor = 'pointer';
+                        img.onclick = () => downloadFile(decryptedData, msg.fileName, 'image');
+                        mediaDiv.appendChild(img);
+                    } else if (msg.type === 'video') {
+                        const video = document.createElement('video');
+                        video.controls = true;
+                        video.style.cursor = 'pointer';
+                        
+                        // Handle ArrayBuffer -> Blob for video
+                        if (decryptedData instanceof ArrayBuffer) {
+                            const blob = new Blob([decryptedData], { type: msg.mimeType });
+                            video.src = URL.createObjectURL(blob);
+                        } else {
+                            video.src = decryptedData;
+                        }
+                        mediaDiv.appendChild(video);
+                    }
+
+                    div.appendChild(mediaDiv);
+                }
+            }
+
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Auto-delete after 5 minutes
+            scheduleAutoDelete(msg, div);
+        }
+
+        async function decryptFileData(encryptedB64, ivB64) {
+            if (!cryptoKey) return null;
+            try {
+                const encrypted = new Uint8Array(atob(encryptedB64).split("").map(c => c.charCodeAt(0)));
+                const iv = new Uint8Array(atob(ivB64).split("").map(c => c.charCodeAt(0)));
+                const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, encrypted);
+                
+                // Try to decode as text (for images stored as data URLs)
+                try {
+                    return new TextDecoder().decode(decrypted);
+                } catch {
+                    // If it fails, return as ArrayBuffer (for video files)
+                    return decrypted;
+                }
+            } catch (e) {
+                console.error("File decryption failed:", e);
+                return null;
+            }
+        }
+
+        function downloadFile(data, fileName, type) {
+            try {
+                let link = document.createElement('a');
+                
+                if (type === 'image') {
+                    link.href = data;
+                } else if (type === 'video' && data instanceof ArrayBuffer) {
+                    const blob = new Blob([data], { type: 'video/mp4' });
+                    link.href = URL.createObjectURL(blob);
+                }
+
+                link.download = fileName || `download_${Date.now()}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                if (type === 'video' && data instanceof ArrayBuffer) {
+                    URL.revokeObjectURL(link.href);
+                }
+            } catch (e) {
+                console.error("Download failed:", e);
+                alert("Download failed. Please try again.");
+            }
+        }
     </script>
 
 </body>
