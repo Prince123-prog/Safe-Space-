@@ -219,6 +219,24 @@
             animation: pulse 2s infinite;
         }
 
+        .online-count {
+            display: none;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: rgba(0, 255, 136, 0.18);
+            border: 1px solid rgba(0, 255, 136, 0.45);
+            color: #bfffe8;
+            font-size: 0.7rem;
+            line-height: 16px;
+            text-align: center;
+        }
+
+        .online-count.visible {
+            display: inline-block;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -607,6 +625,7 @@
 
         <div class="online-indicator" id="onlineStatus">
             <span class="online-dot" id="onlineDot"></span>
+            <span class="online-count" id="onlineCount"></span>
             <span id="onlineText">Connecting...</span>
         </div>
         <div class="messages" id="messages"></div>
@@ -1405,12 +1424,25 @@ input.onkeypress = (e) => {
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function setOnlineStatus(text, isOnline) {
+        let presenceRoomRef = null;
+        let currentPresenceRef = null;
+        let presenceConnectedRef = null;
+
+        function setOnlineStatus(text, isOnline, onlineCount = 0) {
             const onlineText = document.getElementById("onlineText");
             const onlineDot = document.getElementById("onlineDot");
+            const onlineCountEl = document.getElementById("onlineCount");
 
             onlineText.textContent = text;
             onlineDot.classList.toggle("active", isOnline);
+
+            if (onlineCount > 1) {
+                onlineCountEl.textContent = onlineCount;
+                onlineCountEl.classList.add("visible");
+            } else {
+                onlineCountEl.textContent = "";
+                onlineCountEl.classList.remove("visible");
+            }
         }
 
         function setupPresence() {
@@ -1424,22 +1456,39 @@ input.onkeypress = (e) => {
                 return;
             }
 
-            const userRef = db.ref(`presence/${sharedSecret}/${currentUserId}`);
-            const connectedRef = db.ref(".info/connected");
+            presenceRoomRef = db.ref(`presence/${sharedSecret}`);
+            currentPresenceRef = presenceRoomRef.child(currentUserId);
+            presenceConnectedRef = db.ref(".info/connected");
 
-            connectedRef.on("value", (snapshot) => {
+            presenceConnectedRef.on("value", (snapshot) => {
                 if (snapshot.val() !== true) {
                     setOnlineStatus("Offline", false);
                     return;
                 }
 
-                userRef.onDisconnect().remove();
-                userRef.set({ online: true, lastSeen: Date.now() });
-                setOnlineStatus("Connected", true);
+                currentPresenceRef.onDisconnect().remove();
+                currentPresenceRef.set({ online: true, lastSeen: Date.now() });
+            });
+
+            presenceRoomRef.on("value", (snapshot) => {
+                const users = snapshot.val() || {};
+                const onlineUsers = Object.values(users).filter((user) => user?.online);
+                const onlineCount = onlineUsers.length;
+
+                if (onlineCount > 1) {
+                    setOnlineStatus("Connected", true, onlineCount);
+                } else if (onlineCount === 1 && users[currentUserId]?.online) {
+                    setOnlineStatus("Waiting for others", false, onlineCount);
+                } else {
+                    setOnlineStatus("Connecting...", false);
+                }
             });
         }
 
         window.addEventListener("load", setupPresence);
+        window.addEventListener("beforeunload", () => {
+            if (currentPresenceRef) currentPresenceRef.remove();
+        });
     </script>
 
 </body>
