@@ -3,14 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="A safe space platform for communicating anonymously in
- real-time without any storage or accounts">
-<meta name="keywords" content=" Safe Space, Anonymous Confessions,
- Real-time Conversations, No Storage, No Accounts, Ephemeral Messaging, Secure Communication, 
- Privacy-focused Chat, Temporary Connections"> 
+<meta name="description" content="Create temporary encrypted chat rooms for private real-time conversations without accounts.">
+<meta name="keywords" content="Safe Space, Temporary Chat Rooms, Encrypted Chat, No Accounts, Ephemeral Messaging, Secure Communication, Privacy-focused Chat, Temporary Connections"> 
  <meta name="msvalidate.01" content="289C73CD9CD31B694C029ADD2BE751B0" />
  <meta name="google-site-verification" content="google088de46e912a6d30.html" />
-<title>Private Love</title>
+<title>Safe Space</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
 
@@ -24,81 +21,25 @@ font-family:'Poppins',sans-serif;
 
 body{ 
 min-height:100vh;
-background:radial-gradient(circle at top, #0b0b18, #000);
+background:radial-gradient(circle at top, #10253f, #06110f 58%, #020504);
 color:#fff;
 display:flex;
 justify-content:center;
 align-items:center;
 text-align:center;
 padding:20px;
-border:3px solid #ff4fd3;
+border:3px solid #2dd4bf;
 border-radius:3px ;
 } 
-.love{
-    position:relative;
-    width:80px;
-    height:80px;
-    margin:30px auto 0;
-    transform:rotate(-45deg);
-    background:linear-gradient(135deg,#ff4fd8,#7a7cff);
-    box-shadow:0 8px 24px rgba(122,124,255,0.18),0 4px 12px
-     rgba(255,79,216,0.12);
-    text-indent:-9999px; /* hide inner text visually but keep it for screen readers */
-    transition:transform 0.2s ease;
-    cursor:pointer;
-    user-select:none;
-    -webkit-user-select:none;
-    -webkit-touch-callout:none;
-}
-
-.love::before,
-.love::after{
-    content:"";
-    position:absolute;
-    width:80px;
-    height:80px;
-    background:linear-gradient(135deg,#ff4fd8,#7a7cff);
-    border-radius:50%;
-}
-
-.love::before{
-    top:-40px;
-    left:0;
-}
-
-.love::after{
-    top:0;
-    left:40px;
-}
-
-.love:hover{
-    transform:rotate(-45deg) scale(1.08);
-}
-
-.love.active{
-    transform:rotate(-45deg) scale(1.08);
-}
-
-/* Touch-friendly active state for mobile */
-@media (hover: none) and (pointer: coarse) {
-    .love{
-        cursor:pointer;
-    }
-    .love:active{
-        transform:rotate(-45deg) scale(1.08);
-    }
-}
-
 
 .container{
 max-width:650px;
-text-transform: capitalize;
 }
 
 .logo{
 font-size:2.8rem;
 font-weight:700;
-background:linear-gradient(90deg,#ff4fd8,#7a7cff);
+background:linear-gradient(90deg,#f8fafc,#5eead4,#38bdf8);
 background-clip:text;
 -webkit-background-clip: text; /*chrome &safAri*/
 color: transparent;
@@ -113,12 +54,12 @@ margin-bottom:40px;
 }
 
 .glass{
-background:rgba(255,255,255,0.05);
-border:1px solid rgba(255,255,255,0.1);
+background:rgba(7,17,22,0.72);
+border:1px solid rgba(94,234,212,0.18);
 backdrop-filter:blur(12px);
-border-radius:20px;
+border-radius:16px;
 padding:35px 25px;
-box-shadow:0 0 30px rgba(255,79,216,0.15);
+box-shadow:0 18px 50px rgba(0,0,0,0.34), 0 0 28px rgba(45,212,191,0.12);
 }
 
 .glass p{
@@ -128,22 +69,57 @@ opacity:0.8;
 }
 
 .btn{
-margin-top:35px;
+margin-top:0;
 padding:15px 40px;
-border-radius:30px;
-border:1px solid #ff4fd8;
-background:transparent;
-color:#fff;
+border-radius:12px;
+border:1px solid #2dd4bf;
+background:#2dd4bf;
+color:#02110f;
+font-weight:700;
 font-size:1rem;
 cursor:pointer;
 transition:0.3s ease;
-box-shadow:0 0 20px rgba(255,79,216,0.25);
+box-shadow:0 0 20px rgba(45,212,191,0.18);
+}
+
+.btn.secondary{
+background:transparent;
+color:#fff;
+}
+
+.btn.ghost{
+background:rgba(255,255,255,0.06);
+border-color:rgba(255,255,255,0.18);
+color:#dffbf6;
+}
+
+.actions{
+display:grid;
+grid-template-columns:repeat(3, minmax(0, 1fr));
+gap:12px;
+margin-top:30px;
+}
+
+.privacy-note{
+display:none;
+margin-top:20px;
+padding:14px;
+border-radius:12px;
+background:rgba(15,23,42,0.75);
+border:1px solid rgba(148,163,184,0.24);
+text-align:left;
+font-size:1rem;
+line-height:1.7;
+opacity:0.9;
+}
+
+.privacy-note.visible{
+display:block;
 }
 
 .btn:hover{
-background:#ff4fd8;
-color:#000;
-box-shadow:0 0 35px rgba(255,79,216,0.7);
+transform:translateY(-2px);
+box-shadow:0 0 28px rgba(45,212,191,0.32);
 }
 
 .footer{
@@ -152,18 +128,18 @@ font-size:0.75rem;
 opacity:0.5;
 }
 
-.confession{
+.start-badge{
     position:fixed;
     top:18px;
     right:18px;
-    background:linear-gradient(90deg, rgba(255,79,216,0.12), rgba(122,124,255,0.08));
-    color:#180212;
+    background:linear-gradient(90deg, rgba(45,212,191,0.18), rgba(56,189,248,0.16));
+    color:#dffbf6;
     padding:8px 12px;
     border-radius:999px;
     font-weight:700;
     font-size:1vw;
     letter-spacing:0.2px;
-    box-shadow:0 6px 18px rgba(122,124,255,0.08);
+    box-shadow:0 6px 18px rgba(14,165,233,0.16);
     backdrop-filter: blur(6px);
     z-index:1000;
     text-transform:capitalize;
@@ -175,23 +151,23 @@ opacity:0.5;
     justify-content: center;
     align-items: center;
     will-change: transform;
-    animation: confessanime 2.5s ease-in-out infinite alternate;
+    animation: startBadgeAnime 2.5s ease-in-out infinite alternate;
     -webkit-user-select:none;
     user-select:none;
     -webkit-touch-callout:none;
     touch-action:manipulation;
 } 
 
-.confession:hover{
+.start-badge:hover{
     transform:translateY(-3px) scale(1.02);
 }
 
-.confession:active{
+.start-badge:active{
     transform:translateY(-3px) scale(1.02);
 }
 
 @media (max-width:480px){
-  .confession{
+  .start-badge{
     top:12px;
     right:12px;
     padding:6px 10px;
@@ -202,27 +178,27 @@ opacity:0.5;
   }
 }
 
-/* Global keyframes for the confessanime movement */
-@keyframes confessanime {
+/* Global keyframes for the start badge movement */
+@keyframes startBadgeAnime {
   0%   { transform: translateY(0) translateX(0) scale(1);
-    background:wheat; }
+    background:#123b3a; }
 
   25%  { transform: translateY(-6px) translateX(-4px) scale(1.02);
-    background-color: #ff4fd8; }
+    background-color: #0f766e; }
 
   50%  { transform: translateY(-10px) translateX(4px) scale(1.05);
-    background-color: #7a7cff; }
+    background-color: #0369a1; }
 
   75%  { transform: translateY(-6px) translateX(-2px) scale(1.02);
-    background-color: aquamarine; }
+    background-color: #047857; }
 
   100% { transform: translateY(0) translateX(0) scale(1);
-    background-color: #58284e; }
+    background-color: #0f172a; }
 }
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce){
-  .confession{ animation: none !important; }
+  .start-badge{ animation: none !important; }
 }
 
 /* Mobile-specific tweaks */
@@ -232,25 +208,9 @@ opacity:0.5;
   .tagline{font-size:0.95rem;margin-bottom:20px}
   .glass{padding:18px;border-radius:14px}
   .btn{width:100%;padding:12px 16px}
-  .love{width:60px;height:60px;margin:20px auto 0}
-  .love::before{
-    top:-30px;
-    left:0;
-    width:60px;
-    height:60px;
-  }
-  .love::after{
-    top:0;
-    left:30px;
-    width:60px;
-    height:60px;
-  }
-  .love:hover,
-  .love:active{
-    transform:rotate(-45deg) scale(1.05);
-  }
+  .actions{grid-template-columns:1fr}
   .container{max-width:100%;padding:0 10px}
-  .confession{
+  .start-badge{
     top:12px;
     right:12px;
     padding:6px 10px;
@@ -274,47 +234,17 @@ opacity:0.5;
 
 <body>
 
-<div class="confession" aria-label="confess" title="confess">confess</div>
+<div class="start-badge" aria-label="start" title="start">Start</div>
 
 <script>
-// Mobile touch support for love element
-const loveElement = document.querySelector('.love');
-if(loveElement){
-  // Add touch event listeners for mobile
-  loveElement.addEventListener('touchstart', function(e){
-   e.preventDefault();
-    this.classList.add('active');
-  });
-  
-  loveElement.addEventListener('touchend', function(e){
-    e.preventDefault();
-    setTimeout(() => {
-      this.classList.remove('active');
-    }, 200);
-  });
-  
-  // Also support mouse events for desktop
-  loveElement.addEventListener('mousedown', function(){
-    this.classList.add('active');
-  });
-  
-  loveElement.addEventListener('mouseup', function(){
-    this.classList.remove('active');
-  });
-  
-  loveElement.addEventListener('mouseleave', function(){
-    this.classList.remove('active');
-  });
-}
-
-// Confession box animation - ensure it works on all devices
-const confessionBox = document.querySelector('.confession');
-if(confessionBox){
-  confessionBox.addEventListener('click', function(){
+// Start box animation - ensure it works on all devices
+const startBadge = document.querySelector('.start-badge');
+if(startBadge){
+  startBadge.addEventListener('click', function(){
     // Add subtle feedback on tap
     this.style.transform = 'translateY(-3px) scale(1.02)';
     setTimeout(() => {
-      this.style.transform = '';
+      location.href = 'linkpage.html';
     }, 150);
   });
 }
@@ -324,24 +254,28 @@ if(confessionBox){
 
 <div class="logo">safe space</div>
 <div class="tagline">
-feel safe and share 
+Create a temporary private room for one person or a group.
 </div>
 
 <div class="glass">
 <p>
-This is a space for honest feelings, confessions,
-and conversations that should never live forever.
-<br><br>
-No accounts. No servers. No storage.
+This is a space for conversations that should not live forever. Important, but temporary.
+ <br><br>
+No sign-up required. Messages are encrypted before sending.
 <br>
-What you say exists only in the moment.
+Invite anyone with a room link.
 </p>
 
-<button class="btn" onclick="location.href='linkpage.html'">
-Start a Private Connection
-</button>
+<div class="actions">
+<button class="btn" onclick="location.href='linkpage.html'">Create Room</button>
+<button class="btn secondary" onclick="joinWithLink()">Join With Link</button>
+<button class="btn ghost" onclick="togglePrivacy()">Privacy Basics</button>
 </div>
-<div class="love"></div>
+
+<div class="privacy-note" id="privacyNote">
+Messages and shared files are encrypted in your browser before they are sent. Rooms are temporary, do not require accounts, and can be shared with one or more invited people.
+</div>
+</div>
 
 <div class="footer">
 Close the page and everything disappears.<br>
@@ -349,6 +283,28 @@ Close the page and everything disappears.<br>
 </div>
 
 </div>
+
+<script>
+function joinWithLink(){
+  const value = prompt("Paste a Safe Space room link or room key:");
+  if(!value) return;
+
+  const trimmed = value.trim();
+  const keyMatch = trimmed.match(/#key=([^&\s]+)/);
+  const key = keyMatch ? keyMatch[1] : trimmed.replace(/^#?key=/, "");
+
+  if(!key){
+    alert("Please enter a valid room link or key.");
+    return;
+  }
+
+  location.href = `private-chat.html#key=${encodeURIComponent(key)}`;
+}
+
+function togglePrivacy(){
+  document.getElementById("privacyNote").classList.toggle("visible");
+}
+</script>
 
 </body>
 </html>

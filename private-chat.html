@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Private Love Chat</title>
+    <title>Secure Chat Room</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500&display=swap" rel="stylesheet">
     <style>
@@ -15,7 +15,7 @@
         body {
             max-width: 100%;
             height: 100vh;
-            background: radial-gradient(circle at top, #0a0a50, #5e1515);
+            background: radial-gradient(circle at top, #10253f, #06110f 58%, #020504);
             color: #fff;
             display: flex;
             justify-content: center;
@@ -27,35 +27,35 @@
 
         @keyframes backgroundAnim {
             0% {
-                background: radial-gradient(circle at top, #121224, #33282898);
+                background: radial-gradient(circle at top, #10253f, #06110f);
             }
 
             25% {
-                background: radial-gradient(circle at top, #200f2b, #2a3d44);
+                background: radial-gradient(circle at top, #0f2f38, #071512);
             }
 
             50% {
-                background: radial-gradient(circle at top, #383702, #044e42);
+                background: radial-gradient(circle at top, #063b3a, #021f1d);
             }
 
             75% {
-                background: radial-gradient(circle at top, #1b0b23, #3a2a36);
+                background: radial-gradient(circle at top, #082f49, #07110f);
             }
 
             100% {
-                background: radial-gradient(circle at top, #2c010fa2, #02423fcb);
+                background: radial-gradient(circle at top, #0f172a, #021f1dcb);
             }
         }
 
         .chat-container {
             width: 90%;
             max-width: 550px;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(7, 17, 22, 0.78);
             backdrop-filter: blur(14px);
-            border: 1px solid rgba(134, 193, 197, 0.4);
-            border-radius: 20px;
+            border: 1px solid rgba(94, 234, 212, 0.22);
+            border-radius: 16px;
             padding: 20px;
-            box-shadow: 0 0 40px rgba(255, 79, 216, 0.2);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34), 0 0 28px rgba(45, 212, 191, 0.12);
             position: relative;
         }
 
@@ -63,14 +63,14 @@
             text-align: center;
             margin-bottom: 15px;
             font-size: 1.2rem;
-            color: #ff4fd8;
+            color: #5eead4;
             font-weight: 500;
         }
 
         .safe-box {
             margin: 0 auto 12px;
             padding: 10px 16px;
-            background: linear-gradient(90deg, rgba(255, 110, 199, 0.12), rgba(127, 124, 255, 0.08));
+            background: linear-gradient(90deg, rgba(45, 212, 191, 0.14), rgba(56, 189, 248, 0.08));
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: #d8c8c7;
             font-size: 0.9rem;
@@ -156,12 +156,12 @@
             border-radius: 3px;
         }
         .messages::-webkit-scrollbar-thumb {
-            background: rgba(255, 79, 216, 0.4);
+            background: rgba(45, 212, 191, 0.42);
             border-radius: 3px;
         }
 
         .msg {
-            background: rgba(122, 124, 255, 0.15);
+            background: rgba(56, 189, 248, 0.12);
             padding: 10px 14px;
             border-radius: 15px;
             margin: 8px 0;
@@ -173,16 +173,16 @@
 
         /* Sender messages - right aligned, different color */
         .msg.sender {
-            background: linear-gradient(135deg, rgba(255, 79, 216, 0.25), rgba(127, 124, 255, 0.2));
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(56, 189, 248, 0.16));
             margin-left: auto;
-            border-right: 3px solid #ff4fd8;
+            border-right: 3px solid #2dd4bf;
         }
 
         /* Receiver messages - left aligned */
         .msg.receiver {
-            background: rgba(122, 124, 255, 0.15);
+            background: rgba(56, 189, 248, 0.12);
             margin-right: auto;
-            border-left: 3px solid #7f7cff;
+            border-left: 3px solid #38bdf8;
         }
 
         /* Online status indicator */
@@ -296,7 +296,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #ff6ec7, #7f7cff);
+            background: linear-gradient(135deg, #2dd4bf, #38bdf8);
             color: #fff;
             border: none;
             cursor: pointer;
@@ -358,7 +358,7 @@
             position: absolute;
             top: 8px;
             right: 8px;
-            background: rgba(255, 79, 216, 0.9);
+            background: rgba(20, 184, 166, 0.92);
             color: #fff;
             padding: 4px 10px;
             border-radius: 12px;
@@ -395,8 +395,8 @@
             border: none;
             border-radius: 16px;
             padding: 7px 12px;
-            background: rgba(255, 79, 216, 0.95);
-            color: #111;
+            background: rgba(45, 212, 191, 0.95);
+            color: #02110f;
             font-weight: 700;
             cursor: pointer;
             z-index: 12;
@@ -455,7 +455,7 @@
             width: 12px;
             height: 12px;
             border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #ff4fd8;
+            border-top-color: #2dd4bf;
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
             margin-right: 6px;
@@ -473,8 +473,8 @@
         }
 
         .link-btn {
-            background: #ff4fd8;
-            color: #111;
+            background: #2dd4bf;
+            color: #02110f;
             border: none;
             padding: 8px 15px;
             border-radius: 20px;
@@ -615,12 +615,12 @@
 
 <body>
 
-    <div class="safe-notice">Secure Chat System</div>
+    <div class="safe-notice">Secure Room</div>
 
     <div class="chat-container">
-        <button class="link-btn" onclick="createLink()">Generate Secure Chat Link</button>
+        <button class="link-btn" onclick="createLink()">Invite More People</button>
         <button id="toggleBgBtn" class="link-btn" onclick="toggleBackground()" style="background:#ffffff;color:#111;margin-top:8px;">Turn Off Background</button>
-        <div class="title">Private Secure Chat</div>
+        <div class="title">Secure Chat Room</div>
         <div class="safe-box">Safe Space - End-to-End Encrypted</div>
 
         <div class="online-indicator" id="onlineStatus">
@@ -632,7 +632,7 @@
 
         <div class="input-area">
             <div class="composed-input">
-                <input id="input" placeholder="Enter message..." autocomplete="off">
+                <input id="input" placeholder="Message the room..." autocomplete="off">
                 <div class="action-buttons">
                     <button type="button" class="icon-btn" onclick="openFileDialog()" title="Share Files (Images/Videos)">
                         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -653,7 +653,7 @@
         </div>
 
         <div class="footer">
-            Messages disappear after 5 min. Session data is wiped on exit.
+            Room messages disappear after 5 min. Invite links can be shared with one or more people.
         </div>
     </div>
 
@@ -1397,11 +1397,11 @@ input.onkeypress = (e) => {
             const key = btoa(String.fromCharCode(...randomBytes)).replace(/[+/=]/g, "");
             const link = `${location.origin}${location.pathname}#key=${key}`;
 
-            showSystemMessage(`Secure chat link generated: ${link}`);
+            showSystemMessage(`Secure room invite link generated: ${link}`);
 
             if (navigator.clipboard?.writeText) {
                 navigator.clipboard.writeText(link).then(() => {
-                    showSystemMessage("Link copied to clipboard.");
+                    showSystemMessage("Room invite link copied to clipboard.");
                 }).catch(() => {
                     showSystemMessage("Copy failed. Select and copy the generated link above.");
                 });
