@@ -765,6 +765,7 @@ const input = document.getElementById("input");
 
 let chatSession = [];
 let dbRef = null;
+const pageLoadedAt = Date.now();
 const renderingMessages = new Set();
 const deletionTimers = new Map();
 
@@ -792,12 +793,21 @@ window.onload = async () => {
         const msg = snapshot.val();
         msg.dbKey = snapshot.key;
 
+        if (isStaleTextMessage(msg)) {
+            dbRef.child(msg.dbKey).remove();
+            return;
+        }
+
         if (!renderingMessages.has(msg.id)) {
             renderingMessages.add(msg.id);
             await render(msg);
         }
     });
 };
+
+function isStaleTextMessage(msg) {
+    return Boolean(msg.text && !msg.file && (msg.time || 0) < pageLoadedAt);
+}
 
 // ==========================
 // SEND TEXT
