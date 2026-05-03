@@ -787,6 +787,9 @@ let dbRef = null;
 const pageLoadedAt = Date.now();
 const renderingMessages = new Set();
 const deletionTimers = new Map();
+const roomActivityUsers = new Set();
+const receiptSentForUsers = new Set();
+let latestPresenceOnlineCount = 0;
 
 // Unique user ID for this browser session
 let currentUserId = sessionStorage.getItem('chatUserId');
@@ -812,10 +815,17 @@ window.onload = async () => {
         const msg = snapshot.val();
         msg.dbKey = snapshot.key;
 
+        if (handleRoomActivityReceipt(msg)) {
+            return;
+        }
+
         if (isStaleTextMessage(msg)) {
             dbRef.child(msg.dbKey).remove();
             return;
         }
+
+        trackRoomActivity(msg.senderId);
+        sendRoomActivityReceipt(msg);
 
         if (!renderingMessages.has(msg.id)) {
             renderingMessages.add(msg.id);
@@ -826,6 +836,48 @@ window.onload = async () => {
 
 function isStaleTextMessage(msg) {
     return Boolean(msg.text && !msg.file && (msg.time || 0) < pageLoadedAt);
+}
+
+function handleRoomActivityReceipt(msg) {
+    if (msg?.type !== "activity-receipt") return false;
+
+    trackRoomActivity(msg.senderId);
+    trackRoomActivity(msg.receivedFrom);
+
+    const expiresAt = (msg.time || Date.now()) + 300000;
+    const delay = Math.max(0, expiresAt - Date.now());
+    setTimeout(() => {
+        if (msg.dbKey && dbRef) {
+            dbRef.child(msg.dbKey).remove();
+        }
+    }, delay);
+
+    return true;
+}
+
+function trackRoomActivity(userId) {
+    if (!userId) return;
+
+    roomActivityUsers.add(userId);
+    updateRoomAvailabilityStatus();
+}
+
+function sendRoomActivityReceipt(msg) {
+    if (!dbRef || !msg?.senderId || msg.senderId === currentUserId) return;
+    if (receiptSentForUsers.has(msg.senderId)) return;
+
+    receiptSentForUsers.add(msg.senderId);
+    const receiptRef = dbRef.push();
+    receiptRef.set({
+        id: `receipt_${currentUserId}_${Date.now()}_${Math.random()}`,
+        type: "activity-receipt",
+        time: Date.now(),
+        senderId: currentUserId,
+        receivedFrom: msg.senderId,
+        receivedMessageId: msg.id || ""
+    }).catch(() => {
+        receiptSentForUsers.delete(msg.senderId);
+    });
 }
 
 // ==========================
@@ -1472,6 +1524,17 @@ input.onkeypress = (e) => {
             }
         }
 
+        function updateRoomAvailabilityStatus() {
+            const activeRoomCount = Math.max(roomActivityUsers.size, latestPresenceOnlineCount);
+
+            if (activeRoomCount > 1) {
+                setOnlineStatus("Available", true, activeRoomCount);
+                return true;
+            }
+
+            return false;
+        }
+
         function setupPresence() {
             if (!sharedSecret) {
                 setOnlineStatus("No chat connected", false);
@@ -1503,7 +1566,9 @@ input.onkeypress = (e) => {
                         clearInterval(presenceHeartbeatTimer);
                         presenceHeartbeatTimer = null;
                     }
-                    setOnlineStatus("Offline", false);
+                    if (!updateRoomAvailabilityStatus()) {
+                        setOnlineStatus("Offline", false);
+                    }
                     return;
                 }
 
@@ -1519,16 +1584,19 @@ input.onkeypress = (e) => {
                 const users = snapshot.val() || {};
                 const onlineUsers = Object.entries(users).filter(([, user]) => isActivePresence(user));
                 const onlineCount = onlineUsers.length;
+                latestPresenceOnlineCount = onlineCount;
 
-                if (onlineCount > 1) {
-                    setOnlineStatus("Connected", true, onlineCount);
+                if (updateRoomAvailabilityStatus()) {
+                    return;
                 } else if (onlineCount === 1 && isActivePresence(users[currentUserId])) {
                     setOnlineStatus("Waiting for others", false, onlineCount);
                 } else {
                     setOnlineStatus("Connecting...", false);
                 }
             }, () => {
-                setOnlineStatus("Presence unavailable", false);
+                if (!updateRoomAvailabilityStatus()) {
+                    setOnlineStatus("Presence unavailable", false);
+                }
             });
         }
 
@@ -1539,7 +1607,9 @@ input.onkeypress = (e) => {
                 online: true,
                 lastSeen: Date.now()
             }).catch(() => {
-                setOnlineStatus("Presence unavailable", false);
+                if (!updateRoomAvailabilityStatus()) {
+                    setOnlineStatus("Presence unavailable", false);
+                }
             });
         }
 
