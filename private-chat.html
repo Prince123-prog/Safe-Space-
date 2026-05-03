@@ -416,7 +416,7 @@
         }
 
         .msg-media.viewed::after {
-            content: '👁️ Viewed';
+            content: 'Viewed';
             position: absolute;
             top: 50%;
             left: 50%;
@@ -603,7 +603,7 @@
         <button class="link-btn" onclick="createLink()">Generate Secure Chat Link</button>
         <button id="toggleBgBtn" class="link-btn" onclick="toggleBackground()" style="background:#ffffff;color:#111;margin-top:8px;">Turn Off Background</button>
         <div class="title">Private Secure Chat</div>
-        <div class="safe-box">Safe Space • End-to-End Encrypted</div>
+        <div class="safe-box">Safe Space - End-to-End Encrypted</div>
 
         <div class="online-indicator" id="onlineStatus">
             <span class="online-dot" id="onlineDot"></span>
@@ -669,7 +669,7 @@
 
     <script>
         /* --------------------------
-                                    🔐 CRYPTO LOGIC
+                                    CRYPTO LOGIC
                                     -------------------------- */
         let cryptoKey = null;
         const params = new URLSearchParams(location.hash.substring(1));
@@ -753,269 +753,279 @@
                 return "[Decryption Failed]";
             }
         }
+        </script> 
 
-        /* --------------------------
-           💬 CHAT LOGIC
-        -------------------------- */
-        const messagesDiv = document.getElementById("messages");
-        const input = document.getElementById("input");
+      <script>
+// ==========================
+// CHAT LOGIC
+// ==========================
 
-        let chatSession = [];
-        let dbRef = null;
-        const renderingMessages = new Set();
-        const deletionTimers = new Map();
-        let isClearing = false; // Flag to prevent duplicate rendering during clear
-        
-        // User identification and online status. Keep this per tab so two test windows
-        // in the same browser still behave like two different chat users.
-        let currentUserId = sessionStorage.getItem('chatUserId');
-        if (!currentUserId) {
-            currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            sessionStorage.setItem('chatUserId', currentUserId);
+const messagesDiv = document.getElementById("messages");
+const input = document.getElementById("input");
+
+let chatSession = [];
+let dbRef = null;
+const renderingMessages = new Set();
+const deletionTimers = new Map();
+
+// Unique user ID for this browser session
+let currentUserId = sessionStorage.getItem('chatUserId');
+if (!currentUserId) {
+    currentUserId = crypto.randomUUID();
+    sessionStorage.setItem('chatUserId', currentUserId);
+}
+console.log("User:", currentUserId);
+
+// ==========================
+// LOAD CHAT
+// ==========================
+window.onload = async () => {
+    if (!sharedSecret) return;
+    if (!db) {
+        alert("Chat service is unavailable. Please refresh and try again.");
+        return;
+    }
+
+    dbRef = db.ref(`chats/${sharedSecret}`);
+
+    dbRef.on('child_added', async (snapshot) => {
+        const msg = snapshot.val();
+        msg.dbKey = snapshot.key;
+
+        if (!renderingMessages.has(msg.id)) {
+            renderingMessages.add(msg.id);
+            await render(msg);
         }
-        
-        // Track online users
-        let onlineUsers = new Map();
-        let userPresenceRef = null;
-        
-        // Update online status
-        function updateOnlineStatus(count, isActive) {
-            const dot = document.getElementById('onlineDot');
-            const text = document.getElementById('onlineText');
-            if (count > 1) {
-                dot.classList.add('active');
-                text.textContent = `${count} users online`;
-            } else if (count === 1) {
-                dot.classList.add('active');
-                text.textContent = 'You are online';
-            } else {
-                dot.classList.remove('active');
-                text.textContent = 'Connecting...';
-            }
-        }
-        
-        // Handle user presence
-        function setupPresence() {
-            if (!dbRef || !sharedSecret) return;
-            
-            const roomRef = dbRef.parent.parent;
-            userPresenceRef = roomRef.child('presence/' + currentUserId);
-            
-            // Set presence
-            userPresenceRef.set({
-                id: currentUserId,
-                online: true,
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
-            });
-            
-            // Remove on disconnect
-            userPresenceRef.onDisconnect().remove();
-            
-            // Listen for online users
-            roomRef.child('presence').on('value', (snapshot) => {
-                const users = snapshot.val();
-                let count = 0;
-                if (users) {
-                    Object.values(users).forEach(user => {
-                        if (user.online) count++;
-                    });
-                }
-                updateOnlineStatus(count, true);
-            });
-        }
-        
-        // Load existing messages from Firebase
-        window.onload = async () => {
-            if (!sharedSecret) return;
-            const roomKey = sharedSecret;
-            dbRef = db.ref(`chats/${roomKey}`);
+    });
+};
 
-            // Setup presence tracking
-            setupPresence();
+// ==========================
+// SEND TEXT
+// ==========================
+async function send() {
+    if (!sharedSecret) return alert("Open a chat link first");
 
-            // Load existing messages
-            dbRef.once('value', async (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    for (const [key, msg] of Object.entries(data)) {
-                        msg.dbKey = key;
-                        await render(msg);
-                    }
-                }
-            });
+    const textValue = input.value.trim();
+    if (!textValue) return;
 
-            // Listen for new messages in real-time
-            dbRef.on('child_added', async (snapshot) => {
-                // Skip if we're in the middle of clearing messages
-                if (isClearing) return;
-                
-                const msg = snapshot.val();
-                msg.dbKey = snapshot.key;
+    const enc = await encryptData(textValue);
+    if (!enc) {
+        alert("Encryption is not ready yet. Please wait a moment and try again.");
+        return;
+    }
 
-                // Only render if not already rendered
-                if (!renderingMessages.has(msg.id)) {
-                    renderingMessages.add(msg.id);
-                    await render(msg);
-                }
-            });
+    const msg = {
+        id: Date.now() + "_" + Math.random(),
+        time: Date.now(),
+        senderId: currentUserId,
+        text: enc
+    };
 
-            // Listen for updates
-            dbRef.on('child_changed', async (snapshot) => {
-                const msg = snapshot.val();
-                msg.dbKey = snapshot.key;
-                const msgDiv = document.getElementById(`msg-${msg.id}`);
-                if (msgDiv) {
-                    // No updates needed for text-only messages
-                }
-            });
+    finalizeSend(msg);
+    input.value = "";
+}
+
+// ==========================
+// FINAL SEND
+// ==========================
+function finalizeSend(msg) {
+    if (!dbRef) return;
+
+    const newRef = dbRef.push();
+    msg.dbKey = newRef.key;
+
+    newRef.set(msg);
+}
+
+// ==========================
+// FILE HANDLING
+// ==========================
+function openFileDialog() {
+    if (!sharedSecret) {
+        alert("Open a chat first");
+        return;
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    fileInput.value = "";
+    fileInput.click();
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    sendFile(file);
+}
+
+function sendFile(file) {
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+        const fileData = e.target.result;
+
+        const msg = {
+            id: Date.now() + "_" + Math.random(),
+            time: Date.now(),
+            senderId: currentUserId,
+            type: file.type.startsWith('image/') ? 'image' : 'video',
+            fileName: file.name
         };
 
-        function createLink() {
-            const arr = new Uint8Array(16);
-            crypto.getRandomValues(arr);
-            const key = btoa(String.fromCharCode(...arr)).replace(/[+/==]/g, "");
-            const link = `${location.origin}${location.pathname}#key=${key}`;
-            prompt("Copy this secure link to start chatting:", link);
-        }
+        const enc = await encryptData(fileData);
+        msg.file = enc;
 
-        // Clear all messages from chat and Firebase
-        function clearAllMessages() {
-            if (!dbRef) return;
-            
-            // Set flag to prevent duplicate rendering
-            isClearing = true;
-            
-            // Clear local chat session and rendering tracking
-            chatSession = [];
-            messagesDiv.innerHTML = '';
-            renderingMessages.clear();
-            deletionTimers.forEach(timerId => clearTimeout(timerId));
-            deletionTimers.clear();
-            
-            // Remove all messages from Firebase
-            dbRef.once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    Object.keys(data).forEach(key => {
-                        dbRef.child(key).remove();
-                    });
-                }
-                // Reset flag after clearing is done
-                setTimeout(() => { isClearing = false; }, 500);
-            });
-            
-            console.log('All messages cleared');
-        }
+        finalizeSend(msg);
+    };
 
-        // Auto-delete messages after 5 minutes
-        function scheduleAutoDelete(msg, div, delay = 300000) {
-            if (deletionTimers.has(msg.id)) {
-                clearTimeout(deletionTimers.get(msg.id));
-            }
+    reader.readAsDataURL(file);
+}
 
-            const timerId = setTimeout(() => {
-                div.style.opacity = '0';
-                setTimeout(() => {
-                    div.remove();
-                    chatSession = chatSession.filter(m => m.id !== msg.id);
-                    deletionTimers.delete(msg.id);
-                    // Delete from Firebase
-                    if (msg.dbKey && dbRef) {
-                        dbRef.child(msg.dbKey).remove();
-                    }
-                }, 500);
-            }, delay); // 5 minutes = 300000ms by default
+// ==========================
+// RENDER
+// ==========================
+async function render(msg) {
+    const div = document.createElement("div");
+    div.className = "msg";
+    div.id = `msg-${msg.id}`;
 
-            deletionTimers.set(msg.id, timerId);
-        }
+    // sender / receiver
+    if (msg.senderId === currentUserId) {
+        div.classList.add("sender");
+    } else {
+        div.classList.add("receiver");
+    }
 
-        async function send() {
-            if (!sharedSecret) return alert("Generate/Open a secure link first!");
+    // TEXT
+    if (msg.text) {
+        const txt = await decryptData(msg.text.payload, msg.text.iv);
+        div.innerText = txt;
+    }
 
-            const textValue = input.value.trim();
-            if (!textValue) return;
+    // FILE
+    if (msg.file && msg.type) {
+        const data = await decryptFileData(msg.file.payload, msg.file.iv);
 
-            let msgObj = { id: Date.now(), time: Date.now(), senderId: currentUserId };
-            const enc = await encryptData(textValue);
-            if (!enc) return alert("Encryption is not ready yet. Please wait a moment and try again.");
-            msgObj.text = enc;
-            finalizeSend(msgObj);
-        }
+        const mediaDiv = document.createElement("div");
+        mediaDiv.className = "msg-media";
 
-        function finalizeSend(msg) {
-            if (!dbRef) return alert("No chat room connected");
+        if (msg.type === "image") {
+            const img = document.createElement("img");
+            img.src = data;
 
-            chatSession.push(msg);
-            renderingMessages.add(msg.id);
-
-            const newMsgRef = dbRef.push();
-            msg.dbKey = newMsgRef.key;
-            newMsgRef.set(msg, (error) => {
-                if (error) {
-                    console.error("Failed to send message:", error);
-                    alert("Failed to send message. Check console.");
-                } else {
-                    console.log("Message sent successfully");
-                }
-            });
-
-            render(msg);
-            input.value = "";
-        }
-
-        async function render(msg) {
-            const div = document.createElement("div");
-            div.className = "msg";
-            div.id = `msg-${msg.id}`;
-
-            // Add sender/receiver distinction based on user ID
-            if (msg.senderId === currentUserId) {
-                div.classList.add('sender');
+            if (msg.senderId !== currentUserId) {
+                setupReceiverMedia(mediaDiv, img, msg, false);
             } else {
-                div.classList.add('receiver');
+                img.onclick = () => downloadFile(data, msg.fileName);
             }
 
-            if (msg.text) {
-                const decryptedText = await decryptData(msg.text.payload, msg.text.iv);
-                div.innerText = decryptedText;
-            }
-
-            messagesDiv.appendChild(div);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            // Auto-delete after 5 minutes
-            scheduleAutoDelete(msg, div);
+            mediaDiv.appendChild(img);
         }
 
-        function cleanupPresence() {
-            if (userPresenceRef) {
-                userPresenceRef.remove();
+        if (msg.type === "video") {
+            const video = document.createElement("video");
+            video.src = data;
+            video.controls = true;
+
+            if (msg.senderId !== currentUserId) {
+                video.controls = false;
+                setupReceiverMedia(mediaDiv, video, msg, true);
             }
+
+            mediaDiv.appendChild(video);
         }
 
-        // Handle page hide/close on both mobile and desktop
-        window.addEventListener("pagehide", () => {
-            cleanupPresence();
-        });
-        
-        // Also support beforeunload for desktop
-        window.addEventListener("beforeunload", () => {
-            cleanupPresence();
-        });
+        div.appendChild(mediaDiv);
+    }
 
-        // Enter to send text
-        input.onkeypress = (e) => { if (e.key === "Enter") send(); };
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-            // Toggle page background on/off for users who want a plain background
-            function toggleBackground() {
-                const btn = document.getElementById('toggleBgBtn');
-                const body = document.body;
-                const isOff = body.classList.toggle('bg-off');
-                btn.textContent = isOff ? 'Restore Background' : 'Turn Off Background';
-            }
+    scheduleAutoDelete(msg, div);
+}
 
+// ==========================
+// VIEW-ONCE LOGIC
+// ==========================
+function setupReceiverMedia(container, media, msg, isVideo) {
+    container.classList.add("locked");
+
+    const overlay = document.createElement("div");
+    overlay.className = "view-once-overlay";
+    overlay.innerText = "Click to view";
+    container.appendChild(overlay);
+
+    container.onclick = () => {
+        container.classList.remove("locked");
+        overlay.remove();
+
+        if (isVideo) {
+            media.controls = true;
+            media.play();
+            media.onended = () => markViewed(container);
+        } else {
+            media.onclick = () => markViewed(container);
+        }
+    };
+}
+
+function markViewed(container) {
+    container.classList.add("viewed");
+}
+
+// ==========================
+// DECRYPT FILE
+// ==========================
+async function decryptFileData(payload, iv) {
+    try {
+        const decrypted = await decryptData(payload, iv);
+        return decrypted;
+    } catch {
+        return null;
+    }
+}
+
+// ==========================
+// DOWNLOAD
+// ==========================
+function downloadFile(data, name) {
+    const a = document.createElement("a");
+    a.href = data;
+    a.download = name || "file";
+    a.click();
+}
+
+// ==========================
+// AUTO DELETE
+// ==========================
+function scheduleAutoDelete(msg, div) {
+    const timerKey = msg.dbKey || msg.id;
+    if (deletionTimers.has(timerKey)) {
+        clearTimeout(deletionTimers.get(timerKey));
+    }
+
+    const expiresAt = (msg.time || Date.now()) + 300000;
+    const delay = Math.max(0, expiresAt - Date.now());
+    const timerId = setTimeout(() => {
+        div.remove();
+        if (msg.dbKey && dbRef) {
+            dbRef.child(msg.dbKey).remove();
+        }
+        deletionTimers.delete(timerKey);
+    }, delay);
+
+    deletionTimers.set(timerKey, timerId);
+}
+
+// ENTER SEND
+input.onkeypress = (e) => {
+    if (e.key === "Enter") send();
+};
+</script>
+
+    <script>
         /* ========================================
-           🎯 FILE SHARING FUNCTIONALITY
+           FILE SHARING FUNCTIONALITY
            ======================================== */
         
         // File size limits (10MB for images, 50MB for videos)
@@ -1145,7 +1155,7 @@
                         if (msg.viewOnce && msg.senderId !== currentUserId) {
                             const badge = document.createElement('div');
                             badge.className = 'view-once-badge';
-                            badge.textContent = '👁️ View Once';
+                            badge.textContent = 'View Once';
                             mediaDiv.appendChild(badge);
                             
                             img.onclick = () => {
@@ -1177,7 +1187,7 @@
                         if (msg.viewOnce && msg.senderId !== currentUserId) {
                             const badge = document.createElement('div');
                             badge.className = 'view-once-badge';
-                            badge.textContent = '👁️ View Once';
+                            badge.textContent = 'View Once';
                             mediaDiv.appendChild(badge);
                             
                             video.onclick = () => {
@@ -1351,6 +1361,75 @@
                 alert("Download failed. Please try again.");
             }
         }
+
+        function createLink() {
+            const randomBytes = new Uint8Array(16);
+            crypto.getRandomValues(randomBytes);
+            const key = btoa(String.fromCharCode(...randomBytes)).replace(/[+/=]/g, "");
+            const link = `${location.origin}${location.pathname}#key=${key}`;
+
+            showSystemMessage(`Secure chat link generated: ${link}`);
+
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(link).then(() => {
+                    showSystemMessage("Link copied to clipboard.");
+                }).catch(() => {
+                    showSystemMessage("Copy failed. Select and copy the generated link above.");
+                });
+            }
+        }
+
+        function toggleBackground() {
+            const button = document.getElementById("toggleBgBtn");
+            document.body.classList.toggle("bg-off");
+            button.textContent = document.body.classList.contains("bg-off")
+                ? "Turn On Background"
+                : "Turn Off Background";
+        }
+
+        function showSystemMessage(text) {
+            const div = document.createElement("div");
+            div.className = "msg receiver";
+            div.innerText = text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function setOnlineStatus(text, isOnline) {
+            const onlineText = document.getElementById("onlineText");
+            const onlineDot = document.getElementById("onlineDot");
+
+            onlineText.textContent = text;
+            onlineDot.classList.toggle("active", isOnline);
+        }
+
+        function setupPresence() {
+            if (!sharedSecret) {
+                setOnlineStatus("No chat connected", false);
+                return;
+            }
+
+            if (!dbRef || !db) {
+                setOnlineStatus("Chat unavailable", false);
+                return;
+            }
+
+            const userRef = db.ref(`presence/${sharedSecret}/${currentUserId}`);
+            const connectedRef = db.ref(".info/connected");
+
+            connectedRef.on("value", (snapshot) => {
+                if (snapshot.val() !== true) {
+                    setOnlineStatus("Offline", false);
+                    return;
+                }
+
+                userRef.onDisconnect().remove();
+                userRef.set({ online: true, lastSeen: Date.now() });
+                setOnlineStatus("Connected", true);
+            });
+        }
+
+        window.addEventListener("load", setupPresence);
     </script>
 
 </body>
