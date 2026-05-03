@@ -1304,7 +1304,7 @@ input.onkeypress = (e) => {
             } else {
                 media.addEventListener('ended', () => {
                     if (mediaDiv.classList.contains('revealed')) {
-                        markMediaAsViewed(mediaDiv, msg);
+                        removeMessageNow(msg);
                     }
                 });
             }
@@ -1343,6 +1343,30 @@ input.onkeypress = (e) => {
             const msgDiv = document.getElementById(`msg-${msg.id}`);
             if (msgDiv) {
                 scheduleAutoDelete(msg, msgDiv);
+            }
+        }
+
+        function removeMessageNow(msg) {
+            const timerKey = msg.dbKey || msg.id;
+            if (deletionTimers.has(timerKey)) {
+                clearTimeout(deletionTimers.get(timerKey));
+                deletionTimers.delete(timerKey);
+            }
+
+            const msgDiv = document.getElementById(`msg-${msg.id}`);
+            if (msgDiv) {
+                const video = msgDiv.querySelector('video');
+                if (video) {
+                    video.pause();
+                    if (video.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(video.src);
+                    }
+                }
+                msgDiv.remove();
+            }
+
+            if (msg.dbKey && dbRef) {
+                dbRef.child(msg.dbKey).remove();
             }
         }
 
