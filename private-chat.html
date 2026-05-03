@@ -1451,6 +1451,9 @@ input.onkeypress = (e) => {
         let presenceRoomRef = null;
         let currentPresenceRef = null;
         let presenceConnectedRef = null;
+        let presenceHeartbeatTimer = null;
+        const PRESENCE_STALE_AFTER = 70000;
+        const PRESENCE_HEARTBEAT_EVERY = 25000;
 
         function setOnlineStatus(text, isOnline, onlineCount = 0) {
             const onlineText = document.getElementById("onlineText");
@@ -1475,9 +1478,19 @@ input.onkeypress = (e) => {
                 return;
             }
 
-            if (!dbRef || !db) {
+            if (!db) {
                 setOnlineStatus("Chat unavailable", false);
                 return;
+            }
+
+            if (presenceRoomRef) {
+                presenceRoomRef.off();
+            }
+            if (presenceConnectedRef) {
+                presenceConnectedRef.off();
+            }
+            if (presenceHeartbeatTimer) {
+                clearInterval(presenceHeartbeatTimer);
             }
 
             presenceRoomRef = db.ref(`presence/${sharedSecret}`);
@@ -1486,31 +1499,61 @@ input.onkeypress = (e) => {
 
             presenceConnectedRef.on("value", (snapshot) => {
                 if (snapshot.val() !== true) {
+                    if (presenceHeartbeatTimer) {
+                        clearInterval(presenceHeartbeatTimer);
+                        presenceHeartbeatTimer = null;
+                    }
                     setOnlineStatus("Offline", false);
                     return;
                 }
 
                 currentPresenceRef.onDisconnect().remove();
-                currentPresenceRef.set({ online: true, lastSeen: Date.now() });
+                if (presenceHeartbeatTimer) {
+                    clearInterval(presenceHeartbeatTimer);
+                }
+                updateCurrentPresence();
+                presenceHeartbeatTimer = setInterval(updateCurrentPresence, PRESENCE_HEARTBEAT_EVERY);
             });
 
             presenceRoomRef.on("value", (snapshot) => {
                 const users = snapshot.val() || {};
-                const onlineUsers = Object.values(users).filter((user) => user?.online);
+                const onlineUsers = Object.entries(users).filter(([, user]) => isActivePresence(user));
                 const onlineCount = onlineUsers.length;
 
                 if (onlineCount > 1) {
                     setOnlineStatus("Connected", true, onlineCount);
-                } else if (onlineCount === 1 && users[currentUserId]?.online) {
+                } else if (onlineCount === 1 && isActivePresence(users[currentUserId])) {
                     setOnlineStatus("Waiting for others", false, onlineCount);
                 } else {
                     setOnlineStatus("Connecting...", false);
                 }
+            }, () => {
+                setOnlineStatus("Presence unavailable", false);
             });
+        }
+
+        function updateCurrentPresence() {
+            if (!currentPresenceRef) return;
+
+            currentPresenceRef.set({
+                online: true,
+                lastSeen: Date.now()
+            }).catch(() => {
+                setOnlineStatus("Presence unavailable", false);
+            });
+        }
+
+        function isActivePresence(user) {
+            return Boolean(
+                user?.online &&
+                typeof user.lastSeen === "number" &&
+                Date.now() - user.lastSeen < PRESENCE_STALE_AFTER
+            );
         }
 
         window.addEventListener("load", setupPresence);
         window.addEventListener("beforeunload", () => {
+            if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
             if (currentPresenceRef) currentPresenceRef.remove();
         });
     </script>
