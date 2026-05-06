@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <audio id="sendSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+<audio id="receiveSound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3"></audio>
     <meta charset="UTF-8">
     <title>Secure Chat Room</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +13,46 @@
             box-sizing: border-box;
             font-family: 'Poppins', sans-serif;
         }
+        /* Smooth mobile feel */
+html, body {
+    overscroll-behavior: none;
+    touch-action: manipulation;
+}
+
+/* Better input spacing like WhatsApp */
+.composed-input {
+    position: sticky;
+    bottom: 0;
+    background: #111;
+}
+
+/* Messages fill space properly */
+.messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Safe area for iPhone notch */
+body {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Bigger tap targets */
+.icon-btn {
+    min-width: 42px;
+    min-height: 42px;
+}
+
+/* Prevent zoom on input focus (iOS fix) */
+input#input {
+    font-size: 16px;
+}
+
+/* Smooth scrolling */
+.messages {
+    scroll-behavior: smooth;
+}
 
         body {
             max-width: 100%;
@@ -790,6 +832,8 @@ const deletionTimers = new Map();
 const roomActivityUsers = new Set();
 const receiptSentForUsers = new Set();
 let latestPresenceOnlineCount = 0;
+let typingRef = null;
+let typingTimeout = null;
 
 // Unique user ID for this browser session
 let currentUserId = sessionStorage.getItem('chatUserId');
@@ -802,7 +846,7 @@ console.log("User:", currentUserId);
 // ==========================
 // LOAD CHAT
 // ==========================
-window.onload = async () => {
+window.onload = async () => { 
     if (!sharedSecret) return;
     if (!db) {
         alert("Chat service is unavailable. Please refresh and try again.");
@@ -810,10 +854,21 @@ window.onload = async () => {
     }
 
     dbRef = db.ref(`chats/${sharedSecret}`);
+    typingRef = db.ref(`typing/${sharedSecret}`);
 
     dbRef.on('child_added', async (snapshot) => {
         const msg = snapshot.val();
         msg.dbKey = snapshot.key;
+        typingRef.on("value", (snapshot) => {
+    const data = snapshot.val() || {};
+    const typingUsers = Object.keys(data).filter(id => id !== currentUserId);
+
+    if (typingUsers.length > 0) {
+        document.getElementById("onlineText").textContent = "Typing...";
+    } else {
+        updateRoomAvailabilityStatus();
+    }
+});
 
         if (handleRoomActivityReceipt(msg)) {
             return;
@@ -830,6 +885,9 @@ window.onload = async () => {
         if (!renderingMessages.has(msg.id)) {
             renderingMessages.add(msg.id);
             await render(msg);
+            if (msg.senderId !== currentUserId) {
+    document.getElementById("receiveSound")?.play().catch(()=>{});
+}
         }
     });
 };
@@ -916,6 +974,7 @@ function finalizeSend(msg) {
     msg.dbKey = newRef.key;
 
     newRef.set(msg);
+    document.getElementById("sendSound")?.play().catch(()=>{});
 }
 
 // ==========================
@@ -1099,6 +1158,19 @@ function scheduleAutoDelete(msg, div) {
 }
 
 // ENTER SEND
+input.addEventListener("input", () => {
+    if (!typingRef) return;
+
+    typingRef.child(currentUserId).set({
+        typing: true,
+        time: Date.now()
+    });
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        typingRef.child(currentUserId).remove();
+    }, 2000);
+});
 input.onkeypress = (e) => {
     if (e.key === "Enter") send();
 };
@@ -1197,7 +1269,7 @@ input.onkeypress = (e) => {
         }
 
         // Store original render function
-        const originalRender = render;
+        
 
         async function render(msg) {
             const div = document.createElement("div");
@@ -1507,22 +1579,26 @@ input.onkeypress = (e) => {
         const PRESENCE_STALE_AFTER = 70000;
         const PRESENCE_HEARTBEAT_EVERY = 25000;
 
-        function setOnlineStatus(text, isOnline, onlineCount = 0) {
-            const onlineText = document.getElementById("onlineText");
-            const onlineDot = document.getElementById("onlineDot");
-            const onlineCountEl = document.getElementById("onlineCount");
+       function setOnlineStatus(text, isOnline, onlineCount = 0) {
+    const onlineText = document.getElementById("onlineText");
+    const onlineDot = document.getElementById("onlineDot");
+    const onlineCountEl = document.getElementById("onlineCount");
 
-            onlineText.textContent = text;
-            onlineDot.classList.toggle("active", isOnline);
+    if (onlineCount > 1) {
+        onlineText.textContent = "Online";
+    } else {
+        onlineText.textContent = "Offline";
+    }
 
-            if (onlineCount > 1) {
-                onlineCountEl.textContent = onlineCount;
-                onlineCountEl.classList.add("visible");
-            } else {
-                onlineCountEl.textContent = "";
-                onlineCountEl.classList.remove("visible");
-            }
-        }
+    onlineDot.classList.toggle("active", onlineCount > 1);
+
+    if (onlineCount > 1) {
+        onlineCountEl.textContent = onlineCount;
+        onlineCountEl.classList.add("visible");
+    } else {
+        onlineCountEl.classList.remove("visible");
+    }
+}
 
         function updateRoomAvailabilityStatus() {
             const activeRoomCount = Math.max(roomActivityUsers.size, latestPresenceOnlineCount);
@@ -1588,9 +1664,11 @@ input.onkeypress = (e) => {
 
                 if (updateRoomAvailabilityStatus()) {
                     return;
-                } else if (onlineCount === 1 && isActivePresence(users[currentUserId])) {
-                    setOnlineStatus("Waiting for others", false, onlineCount);
-                } else {
+                } else if (onlineCount > 1) {
+    setOnlineStatus("Online", true, onlineCount);
+} else {
+    setOnlineStatus("Offline", false, onlineCount);
+}{
                     setOnlineStatus("Connecting...", false);
                 }
             }, () => {
