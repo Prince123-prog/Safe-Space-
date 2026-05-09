@@ -865,18 +865,15 @@ let chatAudioContext = null;
 let soundUnlocked = false;
 const TYPING_IDLE_AFTER = 3500;
 
-// Unique user ID for this browser session
-let currentUserId = sessionStorage.getItem('chatUserId');
-if (!currentUserId) {
-    currentUserId = crypto.randomUUID();
-    sessionStorage.setItem('chatUserId', currentUserId);
-}
+// Unique user ID for this open chat page. A fresh ID per tab keeps presence accurate
+// when testing with duplicated tabs or multiple windows on the same device.
+let currentUserId = crypto.randomUUID();
 console.log("User:", currentUserId);
 
 // ==========================
 // LOAD CHAT
 // ==========================
-window.onload = async () => {
+async function setupChat() {
     if (!sharedSecret) return;
     if (!db) {
         alert("Chat service is unavailable. Please refresh and try again.");
@@ -906,7 +903,9 @@ window.onload = async () => {
             await render(msg);
         }
     });
-};
+}
+
+window.addEventListener("load", setupChat);
 
 function isStaleTextMessage(msg) {
     return Boolean(msg.text && !msg.file && (msg.time || 0) < pageLoadedAt);
