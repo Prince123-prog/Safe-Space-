@@ -886,6 +886,10 @@ async function setupChat() {
         const msg = snapshot.val();
         msg.dbKey = snapshot.key;
 
+        if (handleRealtimeStateMessage(msg)) {
+            return;
+        }
+
         if (handleRoomActivityReceipt(msg)) {
             return;
         }
@@ -926,6 +930,10 @@ function handleRoomActivityReceipt(msg) {
     }, delay);
 
     return true;
+}
+
+function handleRealtimeStateMessage(msg) {
+    return msg?.type === "presence-state";
 }
 
 function trackRoomActivity(userId) {
@@ -1682,8 +1690,8 @@ input.onkeypress = (e) => {
                 clearInterval(presenceHeartbeatTimer);
             }
 
-            presenceRoomRef = db.ref(`presence/${sharedSecret}`);
-            currentPresenceRef = presenceRoomRef.child(currentUserId);
+            presenceRoomRef = db.ref(`chats/${sharedSecret}`);
+            currentPresenceRef = presenceRoomRef.child(`__presence_${currentUserId}`);
             currentTypingRef = currentPresenceRef.child("typing");
             presenceConnectedRef = db.ref(".info/connected");
 
@@ -1710,9 +1718,10 @@ input.onkeypress = (e) => {
 
             presenceRoomRef.on("value", (snapshot) => {
                 const users = snapshot.val() || {};
-                const onlineUsers = Object.entries(users).filter(([, user]) => isActivePresence(user));
+                const presenceUsers = Object.entries(users).filter(([, user]) => user?.type === "presence-state");
+                const onlineUsers = presenceUsers.filter(([, user]) => isActivePresence(user));
                 const onlineCount = onlineUsers.length;
-                const otherOnlineUsers = onlineUsers.filter(([userId]) => userId !== currentUserId);
+                const otherOnlineUsers = onlineUsers.filter(([, user]) => user.senderId !== currentUserId);
                 const typingUsers = otherOnlineUsers.filter(([, user]) => isActiveTyping(user));
                 latestPresenceOnlineCount = onlineCount;
                 latestOtherOnlineCount = otherOnlineUsers.length;
@@ -1721,7 +1730,7 @@ input.onkeypress = (e) => {
 
                 if (updateRoomAvailabilityStatus()) {
                     return;
-                } else if (onlineCount === 1 && isActivePresence(users[currentUserId])) {
+                } else if (onlineCount === 1 && onlineUsers.some(([, user]) => user.senderId === currentUserId)) {
                     setOnlineStatus("Offline", false, onlineCount);
                 } else {
                     setOnlineStatus("Connecting...", false);
@@ -1737,6 +1746,10 @@ input.onkeypress = (e) => {
             if (!currentPresenceRef) return;
 
             currentPresenceRef.update({
+                id: `presence_${currentUserId}`,
+                type: "presence-state",
+                time: Date.now(),
+                senderId: currentUserId,
                 online: true,
                 lastSeen: Date.now(),
                 pageVisible: document.visibilityState === "visible"
@@ -1770,6 +1783,10 @@ input.onkeypress = (e) => {
 
             isCurrentlyTyping = isTyping;
             currentPresenceRef.update({
+                id: `presence_${currentUserId}`,
+                type: "presence-state",
+                time: Date.now(),
+                senderId: currentUserId,
                 typing: isTyping,
                 typingAt: isTyping ? Date.now() : null,
                 lastSeen: Date.now()
@@ -1791,6 +1808,10 @@ input.onkeypress = (e) => {
             isCurrentlyTyping = false;
             if (currentPresenceRef) {
                 currentPresenceRef.update({
+                    id: `presence_${currentUserId}`,
+                    type: "presence-state",
+                    time: Date.now(),
+                    senderId: currentUserId,
                     typing: false,
                     typingAt: null,
                     lastSeen: Date.now()
