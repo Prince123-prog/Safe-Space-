@@ -2,14 +2,12 @@
 <html lang="en">
 
 <head>
-    <audio id="sendSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
-<audio id="receiveSound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3"></audio>
     <meta charset="UTF-8">
     <title>Secure Chat Room</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500&display=swap" rel="stylesheet">
     <style>
-       //* * {
+        * {
             box-sizing: border-box;
             font-family: 'Poppins', sans-serif;
         }
@@ -279,6 +277,22 @@ input#input {
             display: inline-block;
         }
 
+        .typing-status {
+            min-height: 18px;
+            margin: 6px 8px 0;
+            color: #9af5e6;
+            font-size: 0.78rem;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(-2px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .typing-status.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -536,17 +550,19 @@ input#input {
         /* Mobile Responsive Styles */
         @media (max-width: 480px) {
             body {
-                padding: 10px;
+                padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
                 height: 100dvh;
                 overflow: hidden;
+                align-items: stretch;
             }
 
             .chat-container {
                 width: 100%;
                 max-width: 100%;
                 height: 100%;
-                padding: 12px;
-                border-radius: 15px;
+                min-height: 0;
+                padding: 10px;
+                border-radius: 12px;
                 display: flex;
                 flex-direction: column;
             }
@@ -570,7 +586,7 @@ input#input {
             .messages {
                 flex: 1;
                 height: auto;
-                min-height: 200px;
+                min-height: 0;
                 padding: 8px;
                 font-size: 0.9rem;
                 overflow-x: hidden;
@@ -584,6 +600,7 @@ input#input {
 
             .input-area {
                 margin-top: 10px;
+                flex-shrink: 0;
             }
 
             .composed-input {
@@ -606,8 +623,10 @@ input#input {
             }
 
             .icon-btn {
-                width: 36px;
-                height: 36px;
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
             }
 
             .icon-btn svg {
@@ -651,6 +670,10 @@ input#input {
                 font-size: 0.8rem;
                 padding: 6px 8px;
             }
+
+            .action-buttons {
+                gap: 4px;
+            }
         }
     </style>
 </head>
@@ -670,6 +693,7 @@ input#input {
             <span class="online-count" id="onlineCount"></span>
             <span id="onlineText">Connecting...</span>
         </div>
+        <div class="typing-status" id="typingStatus" aria-live="polite"></div>
         <div class="messages" id="messages"></div>
 
         <div class="input-area">
@@ -832,8 +856,14 @@ const deletionTimers = new Map();
 const roomActivityUsers = new Set();
 const receiptSentForUsers = new Set();
 let latestPresenceOnlineCount = 0;
-let typingRef = null;
-let typingTimeout = null;
+let latestOtherOnlineCount = 0;
+let previousOtherOnlineCount = null;
+let currentTypingRef = null;
+let typingStopTimer = null;
+let isCurrentlyTyping = false;
+let chatAudioContext = null;
+let soundUnlocked = false;
+const TYPING_IDLE_AFTER = 3500;
 
 // Unique user ID for this browser session
 let currentUserId = sessionStorage.getItem('chatUserId');
@@ -846,7 +876,7 @@ console.log("User:", currentUserId);
 // ==========================
 // LOAD CHAT
 // ==========================
-window.onload = async () => { 
+window.onload = async () => {
     if (!sharedSecret) return;
     if (!db) {
         alert("Chat service is unavailable. Please refresh and try again.");
@@ -854,21 +884,10 @@ window.onload = async () => {
     }
 
     dbRef = db.ref(`chats/${sharedSecret}`);
-    typingRef = db.ref(`typing/${sharedSecret}`);
 
     dbRef.on('child_added', async (snapshot) => {
         const msg = snapshot.val();
         msg.dbKey = snapshot.key;
-        typingRef.on("value", (snapshot) => {
-    const data = snapshot.val() || {};
-    const typingUsers = Object.keys(data).filter(id => id !== currentUserId);
-
-    if (typingUsers.length > 0) {
-        document.getElementById("onlineText").textContent = "Typing...";
-    } else {
-        updateRoomAvailabilityStatus();
-    }
-});
 
         if (handleRoomActivityReceipt(msg)) {
             return;
@@ -885,9 +904,6 @@ window.onload = async () => {
         if (!renderingMessages.has(msg.id)) {
             renderingMessages.add(msg.id);
             await render(msg);
-            if (msg.senderId !== currentUserId) {
-    document.getElementById("receiveSound")?.play().catch(()=>{});
-}
         }
     });
 };
@@ -917,7 +933,6 @@ function trackRoomActivity(userId) {
     if (!userId) return;
 
     roomActivityUsers.add(userId);
-    updateRoomAvailabilityStatus();
 }
 
 function sendRoomActivityReceipt(msg) {
@@ -962,6 +977,7 @@ async function send() {
 
     finalizeSend(msg);
     input.value = "";
+    stopTypingNow();
 }
 
 // ==========================
@@ -973,8 +989,9 @@ function finalizeSend(msg) {
     const newRef = dbRef.push();
     msg.dbKey = newRef.key;
 
-    newRef.set(msg);
-    document.getElementById("sendSound")?.play().catch(()=>{});
+    newRef.set(msg).catch(() => {
+        showSystemMessage("Message could not be sent. Please try again.");
+    });
 }
 
 // ==========================
@@ -1081,6 +1098,10 @@ async function render(msg) {
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
+    if (shouldPlayMessageSound(msg)) {
+        playChatSound(msg.senderId === currentUserId ? "sent" : "received");
+    }
+
     scheduleAutoDelete(msg, div);
 }
 
@@ -1157,20 +1178,11 @@ function scheduleAutoDelete(msg, div) {
     deletionTimers.set(timerKey, timerId);
 }
 
+function shouldPlayMessageSound(msg) {
+    return (msg.time || 0) >= pageLoadedAt - 2000;
+}
+
 // ENTER SEND
-input.addEventListener("input", () => {
-    if (!typingRef) return;
-
-    typingRef.child(currentUserId).set({
-        typing: true,
-        time: Date.now()
-    });
-
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        typingRef.child(currentUserId).remove();
-    }, 2000);
-});
 input.onkeypress = (e) => {
     if (e.key === "Enter") send();
 };
@@ -1269,7 +1281,7 @@ input.onkeypress = (e) => {
         }
 
         // Store original render function
-        
+        const originalRender = render;
 
         async function render(msg) {
             const div = document.createElement("div");
@@ -1362,6 +1374,10 @@ input.onkeypress = (e) => {
 
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            if (shouldPlayMessageSound(msg)) {
+                playChatSound(msg.senderId === currentUserId ? "sent" : "received");
+            }
 
             // Auto-delete after 5 minutes
             scheduleAutoDelete(msg, div);
@@ -1579,36 +1595,71 @@ input.onkeypress = (e) => {
         const PRESENCE_STALE_AFTER = 70000;
         const PRESENCE_HEARTBEAT_EVERY = 25000;
 
-       function setOnlineStatus(text, isOnline, onlineCount = 0) {
-    const onlineText = document.getElementById("onlineText");
-    const onlineDot = document.getElementById("onlineDot");
-    const onlineCountEl = document.getElementById("onlineCount");
+        function setOnlineStatus(text, isOnline, onlineCount = 0) {
+            const onlineText = document.getElementById("onlineText");
+            const onlineDot = document.getElementById("onlineDot");
+            const onlineCountEl = document.getElementById("onlineCount");
 
-    if (onlineCount > 1) {
-        onlineText.textContent = "Online";
-    } else {
-        onlineText.textContent = "Offline";
-    }
+            onlineText.textContent = text;
+            onlineDot.classList.toggle("active", isOnline);
 
-    onlineDot.classList.toggle("active", onlineCount > 1);
-
-    if (onlineCount > 1) {
-        onlineCountEl.textContent = onlineCount;
-        onlineCountEl.classList.add("visible");
-    } else {
-        onlineCountEl.classList.remove("visible");
-    }
-}
+            if (onlineCount > 1) {
+                onlineCountEl.textContent = onlineCount;
+                onlineCountEl.classList.add("visible");
+            } else {
+                onlineCountEl.textContent = "";
+                onlineCountEl.classList.remove("visible");
+            }
+        }
 
         function updateRoomAvailabilityStatus() {
-            const activeRoomCount = Math.max(roomActivityUsers.size, latestPresenceOnlineCount);
-
-            if (activeRoomCount > 1) {
-                setOnlineStatus("Available", true, activeRoomCount);
+            if (latestOtherOnlineCount > 0) {
+                const label = latestOtherOnlineCount === 1
+                    ? "Online"
+                    : `${latestOtherOnlineCount} people online`;
+                setOnlineStatus(label, true, latestOtherOnlineCount + 1);
                 return true;
             }
 
+            setOnlineStatus("Offline", false, latestPresenceOnlineCount);
             return false;
+        }
+
+        function announcePresenceChange(otherOnlineCount) {
+            if (previousOtherOnlineCount === null) {
+                previousOtherOnlineCount = otherOnlineCount;
+                return;
+            }
+
+            if (otherOnlineCount === previousOtherOnlineCount) return;
+
+            if (otherOnlineCount > previousOtherOnlineCount) {
+                showSystemMessage(otherOnlineCount === 1
+                    ? "The person you are chatting with is online."
+                    : `${otherOnlineCount} other people are online.`);
+            } else if (otherOnlineCount === 0) {
+                showSystemMessage("The person you are chatting with is offline.");
+            } else {
+                showSystemMessage(`${otherOnlineCount} other people are still online.`);
+            }
+
+            previousOtherOnlineCount = otherOnlineCount;
+        }
+
+        function updateTypingStatus(typingUsers) {
+            const typingStatus = document.getElementById("typingStatus");
+            if (!typingStatus) return;
+
+            if (!typingUsers.length) {
+                typingStatus.textContent = "";
+                typingStatus.classList.remove("visible");
+                return;
+            }
+
+            typingStatus.textContent = typingUsers.length === 1
+                ? "Typing..."
+                : `${typingUsers.length} people are typing...`;
+            typingStatus.classList.add("visible");
         }
 
         function setupPresence() {
@@ -1634,6 +1685,7 @@ input.onkeypress = (e) => {
 
             presenceRoomRef = db.ref(`presence/${sharedSecret}`);
             currentPresenceRef = presenceRoomRef.child(currentUserId);
+            currentTypingRef = currentPresenceRef.child("typing");
             presenceConnectedRef = db.ref(".info/connected");
 
             presenceConnectedRef.on("value", (snapshot) => {
@@ -1649,6 +1701,7 @@ input.onkeypress = (e) => {
                 }
 
                 currentPresenceRef.onDisconnect().remove();
+                currentTypingRef.onDisconnect().remove();
                 if (presenceHeartbeatTimer) {
                     clearInterval(presenceHeartbeatTimer);
                 }
@@ -1660,15 +1713,18 @@ input.onkeypress = (e) => {
                 const users = snapshot.val() || {};
                 const onlineUsers = Object.entries(users).filter(([, user]) => isActivePresence(user));
                 const onlineCount = onlineUsers.length;
+                const otherOnlineUsers = onlineUsers.filter(([userId]) => userId !== currentUserId);
+                const typingUsers = otherOnlineUsers.filter(([, user]) => isActiveTyping(user));
                 latestPresenceOnlineCount = onlineCount;
+                latestOtherOnlineCount = otherOnlineUsers.length;
+                updateTypingStatus(typingUsers);
+                announcePresenceChange(latestOtherOnlineCount);
 
                 if (updateRoomAvailabilityStatus()) {
                     return;
-                } else if (onlineCount > 1) {
-    setOnlineStatus("Online", true, onlineCount);
-} else {
-    setOnlineStatus("Offline", false, onlineCount);
-}{
+                } else if (onlineCount === 1 && isActivePresence(users[currentUserId])) {
+                    setOnlineStatus("Offline", false, onlineCount);
+                } else {
                     setOnlineStatus("Connecting...", false);
                 }
             }, () => {
@@ -1681,9 +1737,10 @@ input.onkeypress = (e) => {
         function updateCurrentPresence() {
             if (!currentPresenceRef) return;
 
-            currentPresenceRef.set({
+            currentPresenceRef.update({
                 online: true,
-                lastSeen: Date.now()
+                lastSeen: Date.now(),
+                pageVisible: document.visibilityState === "visible"
             }).catch(() => {
                 if (!updateRoomAvailabilityStatus()) {
                     setOnlineStatus("Presence unavailable", false);
@@ -1699,9 +1756,117 @@ input.onkeypress = (e) => {
             );
         }
 
+        function isActiveTyping(user) {
+            return Boolean(
+                isActivePresence(user) &&
+                user.typing &&
+                typeof user.typingAt === "number" &&
+                Date.now() - user.typingAt < TYPING_IDLE_AFTER
+            );
+        }
+
+        function updateTypingState(isTyping) {
+            if (!currentPresenceRef) return;
+            if (!isTyping && !isCurrentlyTyping) return;
+
+            isCurrentlyTyping = isTyping;
+            currentPresenceRef.update({
+                typing: isTyping,
+                typingAt: isTyping ? Date.now() : null,
+                lastSeen: Date.now()
+            }).catch(() => {});
+        }
+
+        function scheduleTypingStop() {
+            if (typingStopTimer) clearTimeout(typingStopTimer);
+            typingStopTimer = setTimeout(stopTypingNow, TYPING_IDLE_AFTER);
+        }
+
+        function stopTypingNow() {
+            if (typingStopTimer) {
+                clearTimeout(typingStopTimer);
+                typingStopTimer = null;
+            }
+
+            if (!isCurrentlyTyping && !currentPresenceRef) return;
+            isCurrentlyTyping = false;
+            if (currentPresenceRef) {
+                currentPresenceRef.update({
+                    typing: false,
+                    typingAt: null,
+                    lastSeen: Date.now()
+                }).catch(() => {});
+            }
+        }
+
+        function unlockChatSounds() {
+            if (soundUnlocked) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                chatAudioContext = chatAudioContext || new AudioContext();
+                chatAudioContext.resume?.();
+                soundUnlocked = true;
+            } catch (error) {
+                soundUnlocked = false;
+            }
+        }
+
+        function playChatSound(type) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+
+                chatAudioContext = chatAudioContext || new AudioContext();
+                if (chatAudioContext.state === "suspended") {
+                    chatAudioContext.resume?.();
+                }
+
+                const now = chatAudioContext.currentTime;
+                const oscillator = chatAudioContext.createOscillator();
+                const gain = chatAudioContext.createGain();
+
+                oscillator.type = "sine";
+                oscillator.frequency.setValueAtTime(type === "sent" ? 660 : 520, now);
+                oscillator.frequency.exponentialRampToValueAtTime(type === "sent" ? 880 : 390, now + 0.12);
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(type === "sent" ? 0.08 : 0.1, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+                oscillator.connect(gain);
+                gain.connect(chatAudioContext.destination);
+                oscillator.start(now);
+                oscillator.stop(now + 0.18);
+            } catch (error) {
+                // Browsers can block audio until the first user interaction.
+            }
+        }
+
+        input.addEventListener("input", () => {
+            unlockChatSounds();
+
+            if (input.value.trim()) {
+                updateTypingState(true);
+                scheduleTypingStop();
+            } else {
+                stopTypingNow();
+            }
+        });
+
+        input.addEventListener("blur", stopTypingNow);
+        document.addEventListener("visibilitychange", () => {
+            updateCurrentPresence();
+            if (document.visibilityState !== "visible") {
+                stopTypingNow();
+            }
+        });
+        document.addEventListener("pointerdown", unlockChatSounds, { once: true });
+        document.addEventListener("keydown", unlockChatSounds, { once: true });
+
         window.addEventListener("load", setupPresence);
         window.addEventListener("beforeunload", () => {
             if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+            if (typingStopTimer) clearTimeout(typingStopTimer);
             if (currentPresenceRef) currentPresenceRef.remove();
         });
     </script>
