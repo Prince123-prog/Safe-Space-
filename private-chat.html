@@ -225,6 +225,28 @@ input#input {
             border-left: 3px solid #38bdf8;
         }
 
+        .msg-content {
+            white-space: pre-wrap;
+        }
+
+        .read-receipt {
+            display: block;
+            margin-top: 6px;
+            color: rgba(191, 255, 232, 0.78);
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-align: right;
+            line-height: 1;
+        }
+
+        .msg.receiver .read-receipt {
+            color: rgba(186, 230, 253, 0.7);
+        }
+
+        .read-receipt.seen {
+            color: #5eead4;
+        }
+
         /* Online status indicator */
         .online-indicator {
             display: inline-flex;
@@ -855,6 +877,7 @@ const renderingMessages = new Set();
 const deletionTimers = new Map();
 const roomActivityUsers = new Set();
 const receiptSentForUsers = new Set();
+const localReadUpdates = new Set();
 let latestPresenceOnlineCount = 0;
 let latestOtherOnlineCount = 0;
 let previousOtherOnlineCount = null;
@@ -906,6 +929,17 @@ async function setupChat() {
             renderingMessages.add(msg.id);
             await render(msg);
         }
+    });
+
+    dbRef.on('child_changed', (snapshot) => {
+        const msg = snapshot.val();
+        msg.dbKey = snapshot.key;
+
+        if (handleRealtimeStateMessage(msg) || handleRoomActivityReceipt(msg)) {
+            return;
+        }
+
+        updateReadReceipt(msg);
     });
 }
 
@@ -1001,6 +1035,67 @@ function finalizeSend(msg) {
     });
 }
 
+function isOwnMessage(msg) {
+    return msg?.senderId === currentUserId;
+}
+
+function hasSeenMessage(msg) {
+    if (!msg?.readBy) {
+        return false;
+    }
+
+    return Object.keys(msg.readBy).some((readerId) => readerId !== msg.senderId);
+}
+
+function getReceiptText(msg) {
+    if (isOwnMessage(msg)) {
+        return hasSeenMessage(msg) ? "Seen \u2713\u2713" : "Sent \u2713";
+    }
+
+    return msg?.readBy?.[currentUserId] ? "Seen \u2713\u2713" : "";
+}
+
+function appendReadReceipt(div, msg) {
+    let receipt = div.querySelector(".read-receipt");
+    if (!receipt) {
+        receipt = document.createElement("span");
+        receipt.className = "read-receipt";
+        div.appendChild(receipt);
+    }
+
+    updateReadReceiptElement(receipt, msg);
+}
+
+function updateReadReceipt(msg) {
+    const div = document.getElementById(`msg-${msg.id}`);
+    if (!div) return;
+
+    const receipt = div.querySelector(".read-receipt");
+    if (!receipt) return;
+
+    updateReadReceiptElement(receipt, msg);
+}
+
+function updateReadReceiptElement(receipt, msg) {
+    const text = getReceiptText(msg);
+    receipt.textContent = text;
+    receipt.classList.toggle("seen", text === "Seen \u2713\u2713");
+    receipt.hidden = !text;
+}
+
+function markMessageRead(msg) {
+    if (!dbRef || !msg?.dbKey || !msg?.id || isOwnMessage(msg)) return;
+    if (msg.readBy?.[currentUserId]) return;
+
+    const updateKey = `${msg.dbKey}_${currentUserId}`;
+    if (localReadUpdates.has(updateKey)) return;
+    localReadUpdates.add(updateKey);
+
+    dbRef.child(msg.dbKey).child(`readBy/${currentUserId}`).set(Date.now()).catch(() => {
+        localReadUpdates.delete(updateKey);
+    });
+}
+
 // ==========================
 // FILE HANDLING
 // ==========================
@@ -1063,7 +1158,10 @@ async function render(msg) {
     // TEXT
     if (msg.text) {
         const txt = await decryptData(msg.text.payload, msg.text.iv);
-        div.innerText = txt;
+        const content = document.createElement("div");
+        content.className = "msg-content";
+        content.textContent = txt;
+        div.appendChild(content);
     }
 
     // FILE
@@ -1102,8 +1200,15 @@ async function render(msg) {
         div.appendChild(mediaDiv);
     }
 
+    appendReadReceipt(div, msg);
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    if (!isOwnMessage(msg)) {
+        markMessageRead(msg);
+        msg.readBy = { ...(msg.readBy || {}), [currentUserId]: Date.now() };
+        updateReadReceipt(msg);
+    }
 
     if (shouldPlayMessageSound(msg)) {
         playChatSound(msg.senderId === currentUserId ? "sent" : "received");
@@ -1305,7 +1410,10 @@ input.onkeypress = (e) => {
             // Handle text messages
             if (msg.text) {
                 const decryptedText = await decryptData(msg.text.payload, msg.text.iv);
-                div.innerText = decryptedText;
+                const content = document.createElement("div");
+                content.className = "msg-content";
+                content.textContent = decryptedText;
+                div.appendChild(content);
             }
 
             // Handle file messages
@@ -1379,8 +1487,15 @@ input.onkeypress = (e) => {
                 }
             }
 
+            appendReadReceipt(div, msg);
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            if (!isOwnMessage(msg)) {
+                markMessageRead(msg);
+                msg.readBy = { ...(msg.readBy || {}), [currentUserId]: Date.now() };
+                updateReadReceipt(msg);
+            }
 
             if (shouldPlayMessageSound(msg)) {
                 playChatSound(msg.senderId === currentUserId ? "sent" : "received");
