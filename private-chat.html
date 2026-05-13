@@ -577,6 +577,39 @@ input#input {
             animation: none !important;
         }
 
+        @media (min-width: 769px) {
+            body {
+                padding: clamp(18px, 3vw, 36px);
+            }
+
+            .chat-container {
+                width: min(88vw, 720px);
+                max-width: 720px;
+                padding: clamp(18px, 2.4vw, 28px);
+            }
+
+            .title {
+                font-size: clamp(1.15rem, 1.6vw, 1.45rem);
+            }
+
+            .safe-box {
+                max-width: 540px;
+            }
+
+            .input-area {
+                margin-top: clamp(12px, 1.6vw, 18px);
+            }
+
+            .composed-input {
+                border-radius: 18px;
+                padding: 7px 10px 7px 14px;
+            }
+
+            input#input {
+                padding: 11px 10px;
+            }
+        }
+
         /* Mobile Responsive Styles */
         @media (max-width: 480px) {
             body {
