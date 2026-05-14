@@ -209,6 +209,8 @@ input#input {
         }
 
         .msg {
+            --participant-accent: #38bdf8;
+            --participant-bg: rgba(56, 189, 248, 0.12);
             background: rgba(56, 189, 248, 0.12);
             padding: 10px 14px;
             border-radius: 15px;
@@ -221,16 +223,16 @@ input#input {
 
         /* Sender messages - right aligned, different color */
         .msg.sender {
-            background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(56, 189, 248, 0.16));
+            background: linear-gradient(135deg, var(--participant-bg), rgba(56, 189, 248, 0.16));
             margin-left: auto;
-            border-right: 3px solid #2dd4bf;
+            border-right: 4px solid var(--participant-accent);
         }
 
         /* Receiver messages - left aligned */
         .msg.receiver {
-            background: rgba(56, 189, 248, 0.12);
+            background: var(--participant-bg);
             margin-right: auto;
-            border-left: 3px solid #38bdf8;
+            border-left: 4px solid var(--participant-accent);
         }
 
         .msg-content {
@@ -919,6 +921,14 @@ const deletionTimers = new Map();
 const roomActivityUsers = new Set();
 const receiptSentForUsers = new Set();
 const localReadUpdates = new Set();
+const PARTICIPANT_COLORS = [
+    { accent: "#2dd4bf", bg: "rgba(45, 212, 191, 0.18)" },
+    { accent: "#38bdf8", bg: "rgba(56, 189, 248, 0.16)" },
+    { accent: "#f59e0b", bg: "rgba(245, 158, 11, 0.14)" },
+    { accent: "#fb7185", bg: "rgba(251, 113, 133, 0.14)" },
+    { accent: "#a3e635", bg: "rgba(163, 230, 53, 0.12)" },
+    { accent: "#c084fc", bg: "rgba(192, 132, 252, 0.13)" }
+];
 let latestPresenceOnlineCount = 0;
 let latestOtherOnlineCount = 0;
 let previousOtherOnlineCount = null;
@@ -1137,6 +1147,24 @@ function markMessageRead(msg) {
     });
 }
 
+function getParticipantColor(senderId) {
+    const id = String(senderId || "unknown");
+    let hash = 0;
+
+    for (let i = 0; i < id.length; i++) {
+        hash = ((hash << 5) - hash) + id.charCodeAt(i);
+        hash |= 0;
+    }
+
+    return PARTICIPANT_COLORS[Math.abs(hash) % PARTICIPANT_COLORS.length];
+}
+
+function applyParticipantStyle(div, msg) {
+    const color = getParticipantColor(msg?.senderId);
+    div.style.setProperty("--participant-accent", color.accent);
+    div.style.setProperty("--participant-bg", color.bg);
+}
+
 // ==========================
 // FILE HANDLING
 // ==========================
@@ -1195,6 +1223,7 @@ async function render(msg) {
     } else {
         div.classList.add("receiver");
     }
+    applyParticipantStyle(div, msg);
 
     // TEXT
     if (msg.text) {
@@ -1447,6 +1476,7 @@ input.onkeypress = (e) => {
             } else {
                 div.classList.add('receiver');
             }
+            applyParticipantStyle(div, msg);
 
             // Handle text messages
             if (msg.text) {
