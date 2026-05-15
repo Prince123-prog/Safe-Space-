@@ -257,6 +257,61 @@ input#input {
             color: #5eead4;
         }
 
+        .privacy-shield {
+            position: fixed;
+            inset: 0;
+            display: none;
+            place-items: center;
+            padding: 24px;
+            background: rgba(2, 6, 23, 0.96);
+            color: #d1fae5;
+            text-align: center;
+            z-index: 9999;
+        }
+
+        .privacy-shield.visible {
+            display: grid;
+        }
+
+        .privacy-shield-box {
+            max-width: 340px;
+        }
+
+        .privacy-shield-title {
+            margin-bottom: 8px;
+            color: #5eead4;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .privacy-shield-text {
+            margin-bottom: 14px;
+            color: #bae6fd;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .privacy-shield button {
+            border: 1px solid rgba(94, 234, 212, 0.45);
+            border-radius: 8px;
+            padding: 9px 14px;
+            background: rgba(45, 212, 191, 0.16);
+            color: #e0fffa;
+            cursor: pointer;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+
+            .privacy-shield,
+            .privacy-shield * {
+                display: grid !important;
+                visibility: visible !important;
+            }
+        }
+
         /* Online status indicator */
         .online-indicator {
             display: inline-flex;
@@ -785,6 +840,14 @@ input#input {
 
         <div class="footer">
             Room messages disappear after 5 min. Invite links can be shared with one or more people.
+        </div>
+    </div>
+
+    <div class="privacy-shield" id="privacyShield" aria-live="polite" aria-hidden="true">
+        <div class="privacy-shield-box">
+            <div class="privacy-shield-title">Private chat hidden</div>
+            <div class="privacy-shield-text">Return to the secure room to continue. Screenshots and recordings cannot be fully blocked by a website.</div>
+            <button type="button" id="privacyShieldButton">Show chat</button>
         </div>
     </div>
 
@@ -2047,6 +2110,61 @@ input.onkeypress = (e) => {
                 // Browsers can block audio until the first user interaction.
             }
         }
+
+        // ==========================
+        // PRIVACY CAPTURE GUARD
+        // ==========================
+        const privacyShield = document.getElementById("privacyShield");
+        const privacyShieldButton = document.getElementById("privacyShieldButton");
+        const CAPTURE_WARNING = "For privacy, screenshots, printing, and screen recording are discouraged in this room.";
+
+        function setPrivacyShield(visible) {
+            if (!privacyShield) return;
+            privacyShield.classList.toggle("visible", visible);
+            privacyShield.setAttribute("aria-hidden", String(!visible));
+        }
+
+        function warnCaptureAttempt() {
+            setPrivacyShield(true);
+            if (typeof showSystemMessage === "function") {
+                showSystemMessage(CAPTURE_WARNING);
+            }
+        }
+
+        function isCaptureShortcut(event) {
+            const key = event.key?.toLowerCase();
+            return key === "printscreen" ||
+                (event.ctrlKey && key === "p") ||
+                (event.metaKey && event.shiftKey && ["3", "4", "5"].includes(key)) ||
+                (event.ctrlKey && event.shiftKey && ["s", "r"].includes(key));
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (!isCaptureShortcut(event)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            warnCaptureAttempt();
+        }, true);
+
+        document.addEventListener("contextmenu", (event) => {
+            event.preventDefault();
+        });
+
+        window.addEventListener("blur", () => {
+            setPrivacyShield(true);
+        });
+
+        window.addEventListener("focus", () => {
+            setPrivacyShield(false);
+        });
+
+        window.addEventListener("beforeprint", warnCaptureAttempt);
+        window.addEventListener("afterprint", () => setPrivacyShield(false));
+
+        privacyShieldButton?.addEventListener("click", () => {
+            setPrivacyShield(false);
+        });
 
         input.addEventListener("input", () => {
             unlockChatSounds();
